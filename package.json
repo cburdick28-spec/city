@@ -1,0 +1,9 @@
+{
+  "name": "blocktown",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Blocktown, a 3D browser city-builder built with three.js. Static site, no build step.",
+  "scripts": {
+    "dev": "npx --yes serve . -l 3000"
+  }
+}
