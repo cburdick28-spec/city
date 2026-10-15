@@ -71,8 +71,10 @@ dt{color:var(--mute)} dd{margin:0;font-variant-numeric:tabular-nums;text-align:r
 .bar i{display:block;height:100%;background:var(--amber);width:0;transition:width .5s}
 #rank{font:800 22px/1 var(--display);letter-spacing:.05em;text-transform:uppercase}
 #rankNext{color:var(--mute);font-size:12px}
-#reset,#grow{width:100%;padding:8px;border:1px solid var(--edge);background:transparent;border-radius:6px;color:var(--mute);font-size:12px}
-#grow{color:var(--text);border-color:rgba(255,179,71,.5)}
+#reset,#grow,#polBtn{width:100%;padding:8px;border:1px solid var(--edge);background:transparent;border-radius:6px;color:var(--mute);font-size:12px}
+#grow,#polBtn{color:var(--text);border-color:rgba(255,179,71,.5)}
+.card.lock{opacity:.45}
+#pol .mpanel{width:min(820px,100%)}
 #grow:hover{background:rgba(255,179,71,.14)}
 #reset.arm{border-color:var(--bad);color:var(--bad)}
 
@@ -200,6 +202,7 @@ dt{color:var(--mute)} dd{margin:0;font-variant-numeric:tabular-nums;text-align:r
       <div class="bar"><i id="rankBar"></i></div>
       <div id="rankNext"></div>
     </section>
+    <button id="polBtn">Policies</button>
     <button id="grow">Grow city (free burst of new lots)</button>
     <button id="reset">New game / menu</button>
   </aside>
@@ -218,6 +221,13 @@ dt{color:var(--mute)} dd{margin:0;font-variant-numeric:tabular-nums;text-align:r
         <div id="mdiffNote"></div>
       </div>
       <div class="actions"><button id="mcont" hidden>Continue city</button><button id="mgo" class="primary">Start</button></div>
+    </div>
+  </div>
+  <div id="pol" class="overlay" hidden>
+    <div class="mpanel panel">
+      <div class="mhead"><div><b>Policies</b><small>Laws cost money or trade one thing for another. Switch them on and off any time.</small></div></div>
+      <div class="cards" id="pcards"></div>
+      <div class="actions"><button id="pclose" class="primary">Done</button></div>
     </div>
   </div>
   <div id="end" class="overlay" hidden>
@@ -247,8 +257,8 @@ if(!window.THREE){var t=$('toast');t.hidden=false;t.textContent='The 3D engine c
 
 /* ---------- constants ---------- */
 var N=36,HALF=N/2,DAY=0.7,SAVE='blocktown-save-v1';
-var T={E:0,ROAD:1,RES:2,COM:3,IND:4,POWER:5,PARK:6,FIRE:7,STADIUM:8,SPIRE:9,METRO:10};
-var NAMES=['Empty','Road','Residential','Commercial','Industrial','Power plant','Park','Fire station','Stadium','Spire','Metro station'];
+var T={E:0,ROAD:1,RES:2,COM:3,IND:4,POWER:5,PARK:6,FIRE:7,STADIUM:8,SPIRE:9,METRO:10,SCHOOL:11,HOSP:12,POLICE:13,WIND:14,PLAZA:15};
+var NAMES=['Empty','Road','Residential','Commercial','Industrial','Power plant','Park','Fire station','Stadium','Spire','Metro station','School','Hospital','Police station','Wind farm','Plaza'];
 var RES_POP=[0,8,22,48,230],COM_JOBS=[0,5,14,34,170],IND_JOBS=[0,9,22,45,210];
 var USE_R=[0,1,3,6,22],USE_C=[0,2,5,11,40],USE_I=[0,3,7,14,52],PLANT_MW=80;
 var TOOLS=[
@@ -264,6 +274,11 @@ var TOOLS=[
  {id:'stadium',name:'Stadium',cost:3500,color:'#d9a441',t:T.STADIUM,rank:3,key:'g'},
  {id:'spire',name:'Spire',cost:9000,color:'#7fd0ff',t:T.SPIRE,rank:4,key:'h'},
  {id:'metro',name:'Metro station',cost:2500,color:'#2f6fb3',t:T.METRO,rank:3,key:'m'},
+ {id:'school',name:'School',cost:400,color:'#d9825a',t:T.SCHOOL,rank:1,key:'j'},
+ {id:'police',name:'Police station',cost:500,color:'#5a6f8a',t:T.POLICE,rank:1,key:'k'},
+ {id:'wind',name:'Wind farm',cost:350,color:'#cfe3ea',t:T.WIND,rank:1,key:'n'},
+ {id:'hosp',name:'Hospital',cost:900,color:'#e8eef0',t:T.HOSP,rank:2,key:'l'},
+ {id:'plaza',name:'Plaza',cost:150,color:'#d9cfb4',t:T.PLAZA,rank:2,key:'o'},
  {id:'bull',name:'Bulldoze',cost:5,color:'#f0695a',key:'8'}
 ];
 var RANKS=[[0,'Hamlet'],[100,'Village'],[400,'Town'],[1000,'Large town'],[2500,'City'],[6000,'Metropolis'],[12000,'Megacity']];
@@ -284,7 +299,8 @@ var GOALS=[
  {t:'Grow a mega complex',r:6000,max:1,cur:function(s){return s.megas}},
  {t:'Raise the Spire',r:10000,max:1,cur:function(s){return s.spires}},
  {t:'Reach 6,000 residents',r:20000,max:6000,cur:function(s){return s.pop}},
- {t:'Bank $100,000',r:25000,max:100000,cur:function(){return Math.floor(money)}}
+ {t:'Bank $100,000',r:25000,max:100000,cur:function(){return Math.floor(money)}},
+ {t:'Open a school, hospital and police station',r:6000,max:3,cur:function(s){return Math.min(1,s.schools)+Math.min(1,s.hosps)+Math.min(1,s.police)}}
 ];
 
 
@@ -301,6 +317,22 @@ var DIFFS={
  brutal:{n:'Brutal',money:.35,inc:.7,exp:1.45,fire:2.4,mood:-10,gr:.6,note:'Almost no cash, heavy upkeep, constant fires.'}
 };
 function DF(){return DIFFS[diff]||DIFFS.normal}
+var pols={};
+function pol(id){return !!pols[id]}
+var SERV={11:{r:6,use:3,mood:6},12:{r:7,use:5,mood:6},13:{r:6,use:3,mood:5},15:{r:3,use:0,mood:6}};
+var POLS=[
+ {id:'cleanair',name:'Clean air act',rank:1,desc:'Pollution hurts mood 60% less. Factories pay for scrubbers.',cost:function(s){return Math.round(s.ind*.3)}},
+ {id:'greenbelt',name:'Green belt',rank:1,desc:'Parks lift mood 60% more. Needs maintenance crews.',cost:function(s){return s.parks*6}},
+ {id:'firecode',name:'Fire code',rank:1,desc:'Fires start 60% less often. Inspectors are not free.',cost:function(s){return Math.round(s.roads*.5)}},
+ {id:'freetransit',name:'Free transit',rank:2,desc:'No fares, but transit lifts mood more and clears more traffic.',tag:'loses fare income',cost:function(){return 0}},
+ {id:'taxbreak',name:'Business tax break',rank:2,desc:'Shop and factory demand jumps. Tax income drops 8%.',tag:'-8% taxes',cost:function(){return 0}},
+ {id:'nightlife',name:'Night economy',rank:2,desc:'Shops stay open late for extra income. A little noise costs mood.',income:function(s){return Math.round(s.com*.35)},cost:function(){return 0}},
+ {id:'tourism',name:'Tourism board',rank:3,desc:'Stadium, Spire and plazas earn double.',cost:function(){return 400}},
+ {id:'highrise',name:'High-rise incentives',rank:3,desc:'Mega complexes form 3x faster. Skyline noise costs a little mood.',cost:function(){return 200}},
+ {id:'austerity',name:'Austerity',rank:0,desc:'Cut all upkeep 20%. Citizens notice. Mood takes a hit.',tag:'-20% upkeep',cost:function(){return 0}}
+];
+function polCost(){var t=0;POLS.forEach(function(p){if(pol(p.id))t+=p.cost(stats)});return t}
+function polIncome(){var t=0;POLS.forEach(function(p){if(pol(p.id)&&p.income)t+=p.income(stats)});return t}
 function scnFire(){return scn&&!scn.done&&SCN[scn.id].fire||1}
 function scnFireCap(){return scn&&!scn.done&&SCN[scn.id].fireCap||1}
 function scnUpk(){return scn&&!scn.done&&SCN[scn.id].upk||1}
@@ -639,6 +671,63 @@ function metroSign(){
   var c=cv(64,64),g=c.getContext('2d');g.fillStyle='#2f6fb3';g.fillRect(0,0,64,64);g.fillStyle='#fff';g.font='bold 46px sans-serif';g.textAlign='center';g.textBaseline='middle';g.fillText('M',32,35);
   return new THREE.CanvasTexture(c);
 }
+function buildSchool(){
+  var g=new THREE.Group();
+  P(g,.92,.03,.92,'#9aa1a8',0,0,0);
+  P(g,.7,.3,.3,'#d9825a',-.08,.03,.22);P(g,.74,.04,.34,'#7a3b2a',-.08,.33,.22);
+  P(g,.3,.3,.4,'#d9825a',.3,.03,-.08);P(g,.34,.04,.44,'#7a3b2a',.3,.33,-.08);
+  P(g,.12,.46,.12,'#c9724a',-.36,.03,.22);
+  var cone=new THREE.Mesh(new THREE.ConeGeometry(.1,.14,4),M('#7a3b2a'));cone.rotation.y=Math.PI/4;cone.position.set(-.36,.56,.22);cone.castShadow=true;g.add(cone);
+  [-.3,-.12,.06,.2].forEach(function(x){P(g,.08,.11,.01,'#3d5870',x,.12,.375)});
+  P(g,.4,.01,.3,'#c9604a',-.15,.03,-.28);P(g,.05,.12,.05,'#e8c34a',-.3,.04,-.28);
+  C(g,.008,.008,.5,'#dddddd',.4,.03,.38,5);P(g,.1,.06,.01,'#e0533f',.45,.45,.38);
+  return g;
+}
+function buildHospital(){
+  var g=new THREE.Group();
+  P(g,.92,.03,.92,'#9aa1a8',0,0,0);
+  P(g,.62,.56,.5,'#f2f4f5',-.08,.03,.05);P(g,.64,.05,.52,'#4a90d9',-.08,.42,.05);P(g,.66,.03,.54,'#cfd6da',-.08,.59,.05);
+  P(g,.28,.34,.32,'#e6eaec',.32,.03,-.2);
+  P(g,.24,.06,.012,'#d9382c',-.08,.28,.305);P(g,.06,.24,.012,'#d9382c',-.08,.19,.305);
+  [-.28,.12].forEach(function(x){[.12,.3].forEach(function(y){P(g,.09,.08,.01,'#6f8fa8',x,y,.305)})});
+  C(g,.15,.15,.02,'#59636d',.05,.62,.02,16);P(g,.1,.005,.02,'#ffffff',.05,.645,.02);P(g,.02,.005,.1,'#ffffff',.05,.645,.02);
+  blink(g,-.3,.68,-.1);
+  return g;
+}
+function buildPolice(){
+  var g=new THREE.Group();
+  P(g,.92,.03,.92,'#9aa1a8',0,0,0);
+  P(g,.64,.34,.46,'#5a6f8a',0,.03,.05);P(g,.68,.04,.5,'#2d3b4f',0,.37,.05);
+  P(g,.34,.07,.015,'#f4f6f8',0,.27,.285);P(g,.34,.02,.016,'#2d5bd6',0,.25,.286);
+  [-.22,.22].forEach(function(x){P(g,.1,.12,.01,'#32465c',x,.12,.285)});
+  var bc=new THREE.Mesh(new THREE.CylinderGeometry(.035,.035,.06,10),M('#3a7bff',{emissive:'#3a7bff',emissiveIntensity:.8}));bc.position.set(0,.44,.05);g.add(bc);
+  P(g,.12,.05,.22,'#f4f4f4',.3,.03,-.32);P(g,.12,.02,.1,'#2d5bd6',.3,.08,-.32);
+  C(g,.008,.008,.55,'#dddddd',-.36,.03,-.34,5);
+  return g;
+}
+function buildWind(){
+  var g=new THREE.Group(),rotors=[];
+  P(g,.92,.02,.92,'#8fae7a',0,0,0);
+  [[-.2,-.15,1.1],[.25,.22,.8]].forEach(function(t){
+    C(g,.022,.045,t[2],'#f0f3f5',t[0],.02,t[1],10);
+    P(g,.07,.06,.14,'#e8ecef',t[0],.02+t[2],t[1]);
+    var rot=new THREE.Group();rot.position.set(t[0],.05+t[2],t[1]+.1);
+    for(var i=0;i<3;i++){var arm=new THREE.Group();arm.rotation.z=i*2.094;var bl=new THREE.Mesh(new THREE.BoxGeometry(.035,t[2]*.4,.01),M('#f5f7f8'));bl.position.y=t[2]*.2;bl.castShadow=true;arm.add(bl);rot.add(arm)}
+    g.add(rot);rotors.push(rot);
+  });
+  g.userData.spin=rotors;blink(g,-.2,1.22,-.15);
+  return g;
+}
+function buildPlaza(){
+  var g=new THREE.Group();
+  P(g,.92,.02,.92,'#cfc7b4',0,0,0);
+  C(g,.32,.32,.06,'#b9b2a0',0,.02,0,24);
+  var w=new THREE.Mesh(new THREE.CylinderGeometry(.27,.27,.05,24),M('#4aa4cf',{roughness:.2,metalness:.2}));w.position.y=.065;g.add(w);
+  C(g,.02,.03,.28,'#bfe6f7',0,.07,0,8);C(g,.1,.12,.05,'#cfe8f2',0,.3,0,12);
+  [[-.38,-.38],[.38,-.38],[-.38,.38],[.38,.38]].forEach(function(p,k){C(g,.02,.03,.12,'#6b4a33',p[0],.02,p[1],6);var cn=new THREE.Mesh(new THREE.ConeGeometry(.1,.26,7),M(['#2f8a4a','#3da45a'][k%2]));cn.position.set(p[0],.26,p[1]);cn.castShadow=true;g.add(cn)});
+  [[0,.42],[0,-.42]].forEach(function(p){P(g,.2,.03,.05,'#8a6a4a',p[0],.02,p[1])});
+  return g;
+}
 function buildMetro(){
   var g=new THREE.Group();
   P(g,.92,.04,.92,'#8f969d',0,0,0);
@@ -685,6 +774,11 @@ function buildMega(t,x,z){
 }
 function buildObj(t,l,x,z){
   if(t===T.METRO)return buildMetro();
+  if(t===T.SCHOOL)return buildSchool();
+  if(t===T.HOSP)return buildHospital();
+  if(t===T.POLICE)return buildPolice();
+  if(t===T.WIND)return buildWind();
+  if(t===T.PLAZA)return buildPlaza();
   var r=rng((x*73856093)^(z*19349663)^((l+1)*83492791)^(t*2654435761));
   if(t===T.RES)return buildRes(l,r);
   if(t===T.COM)return buildCom(l,r);
@@ -717,7 +811,7 @@ function roadCanvas(mask){
 var roadMats=[];for(var rm=0;rm<16;rm++){roadMats.push(new THREE.MeshStandardMaterial({map:(function(c){var t=new THREE.CanvasTexture(c);t.anisotropy=8;return t})(roadCanvas(rm)),roughness:.95}))}
 var tileGeo=new THREE.PlaneGeometry(1,1);tileGeo.rotateX(-Math.PI/2);
 var plotGeo=new THREE.PlaneGeometry(.94,.94);plotGeo.rotateX(-Math.PI/2);
-var plotMats={};(function(){var c={2:'#8fcf98',3:'#86b9e6',4:'#dcc47c',5:'#8c949b',6:'#4f9d58',7:'#8f969d',8:'#9aa1a8',9:'#7d8a96',10:'#8c949b'};for(var k in c)plotMats[k]=new THREE.MeshStandardMaterial({color:c[k],roughness:1})})();
+var plotMats={};(function(){var c={2:'#8fcf98',3:'#86b9e6',4:'#dcc47c',5:'#8c949b',6:'#4f9d58',7:'#8f969d',8:'#9aa1a8',9:'#7d8a96',10:'#8c949b',11:'#e0b9a1',12:'#d6e4ea',13:'#a9b6c6',14:'#9bc3a0',15:'#d9cfb4'};for(var k in c)plotMats[k]=new THREE.MeshStandardMaterial({color:c[k],roughness:1})})();
 var lampMat=new THREE.MeshBasicMaterial({color:'#9aa3aa'}),lampGeo=new THREE.SphereGeometry(.035,8,8);
 function wx(x){return x-HALF+.5}
 function roadMask(x,z){var m=0;for(var d=0;d<4;d++){if(roadAt(x+DIRS[d][0],z+DIRS[d][1]))m|=(1<<d)}return m}
@@ -824,7 +918,7 @@ function placeCar(car){
   car.ax=r[0];car.az=r[1];car.bx=n[0];car.bz=n[1];car.t=0;car.g.visible=true;return true;
 }
 function syncCars(){
-  var want=Math.min(46,Math.floor(stats.roads*.7*(1-.4*(stats.transit||0))));
+  var want=Math.min(46,Math.floor(stats.roads*.7*(1-(pol('freetransit')?.6:.4)*(stats.transit||0))));
   while(cars.length<want){var c=makeCar();if(!placeCar(c)){scene.remove(c.g);break}cars.push(c)}
   while(cars.length>want){var c2=cars.pop();scene.remove(c2.g)}
   syncBuses();
@@ -935,7 +1029,7 @@ function burnTick(){
     }
     if(f.age>=7){var fx=f.x,fz=f.z;extinguish(key);clearTile(fx,fz);note('A building burned to the ground')}
   }
-  if(day>40&&Object.keys(fires).length<scnFireCap()&&Math.random()<.012*DF().fire*scnFire()){
+  if(day>40&&Object.keys(fires).length<scnFireCap()&&Math.random()<.012*DF().fire*scnFire()*(pol('firecode')?.4:1)){
     var cand=[];for(var z=0;z<N;z++)for(var x=0;x<N;x++){if(flammable(grid[idx(x,z)]))cand.push([x,z])}
     if(cand.length>6){var p=cand[(Math.random()*cand.length)|0];igniteTile(p[0],p[1]);note(covered(p[0],p[1])?'Fire! The crew is on it':'Fire! Build a fire station or bulldoze a firebreak')}
   }
@@ -951,11 +1045,12 @@ function animFires(dt){
 
 /* ---------- simulation ---------- */
 function computeStats(){
-  var resCap=0,com=0,ind=0,plants=0,parks=0,roads=0,use=0,polluted=0,stations=0,stadiums=0,spires=0,metros=0,stops=0,megas=0,trPop=0,st=[],tr=[],x,z,c;
+  var resCap=0,com=0,ind=0,plants=0,parks=0,roads=0,use=0,polluted=0,stations=0,stadiums=0,spires=0,metros=0,stops=0,megas=0,trPop=0,winds=0,sv=[],svn={},svPop={},st=[],tr=[],x,z,c;
   for(z=0;z<N;z++)for(x=0;x<N;x++){
     c=grid[idx(x,z)];
     if(c.m===2)continue;
     if(c.m===1)megas++;
+    if(SERV[c.t]){svn[c.t]=(svn[c.t]||0)+1;sv.push([x,z,SERV[c.t].r,c.t]);use+=SERV[c.t].use}
     switch(c.t){
       case T.ROAD:roads++;if(c.stop){stops++;tr.push([x,z,BUS_R])}break;
       case T.RES:resCap+=RES_POP[c.l];use+=USE_R[c.l];break;
@@ -967,6 +1062,7 @@ function computeStats(){
       case T.STADIUM:stadiums++;use+=20;break;
       case T.SPIRE:spires++;use+=12;break;
       case T.METRO:metros++;use+=6;tr.push([x,z,METRO_R]);break;
+      case T.WIND:winds++;break;
     }
   }
   for(z=0;z<N;z++)for(x=0;x<N;x++){
@@ -977,19 +1073,21 @@ function computeStats(){
     }
     polluted+=RES_POP[c.l]*Math.min(1,p);
     for(var q=0;q<tr.length;q++){if(Math.hypot(x-tr[q][0],z-tr[q][1])<=tr[q][2]){trPop+=RES_POP[c.l];break}}
+    var seen={};for(q=0;q<sv.length;q++){if(!seen[sv[q][3]]&&Math.hypot(x-sv[q][0],z-sv[q][1])<=sv[q][2]){seen[sv[q][3]]=1;svPop[sv[q][3]]=(svPop[sv[q][3]]||0)+RES_POP[c.l]}}
   }
-  var pf=resCap?polluted/resCap:0;
-  var s={pop:0,jobs:com+ind,com:com,ind:ind,use:use,supply:plants*PLANT_MW,roads:roads,plants:plants,parks:parks,pf:pf,resCap:resCap,stations:stations,stadiums:stadiums,spires:spires,metros:metros,stops:stops,megas:megas,trPop:trPop,transit:resCap?trPop/resCap:0,st:st};
+  var pf=(resCap?polluted/resCap:0)*(pol('cleanair')?.4:1),svf={},svMood=0;
+  for(var sk in SERV){svf[sk]=resCap?(svPop[sk]||0)/resCap:0;svMood+=SERV[sk].mood*svf[sk]}
+  var s={pop:0,jobs:com+ind,com:com,ind:ind,use:use,supply:plants*PLANT_MW+winds*30,winds:winds,schools:svn[11]||0,hosps:svn[12]||0,police:svn[13]||0,plazas:svn[15]||0,svf:svf,roads:roads,plants:plants,parks:parks,pf:pf,resCap:resCap,stations:stations,stadiums:stadiums,spires:spires,metros:metros,stops:stops,megas:megas,trPop:trPop,transit:resCap?trPop/resCap:0,st:st};
   var brown=use>s.supply;
-  var parkScore=18*Math.min(1,parks*60/(resCap+60));
-  var target=64+parkScore-30*pf-(tax-9)*2.5-(brown?18:0)-((resCap>s.jobs*1.5+10)?8:0)+Math.min(14,stadiums*7+spires*5)-Math.min(10,Object.keys(fires).length*4)+10*s.transit+DF().mood;
+  var parkScore=18*Math.min(1,parks*60/(resCap+60))*(pol('greenbelt')?1.6:1);
+  var target=64+parkScore-30*pf-(tax-9)*2.5-(brown?18:0)-((resCap>s.jobs*1.5+10)?8:0)+Math.min(14,stadiums*7+spires*5)-Math.min(10,Object.keys(fires).length*4)+10*s.transit+svMood+(pol('freetransit')?4*s.transit:0)-(pol('nightlife')?2:0)-(pol('highrise')?2:0)-(pol('austerity')?4:0)+DF().mood;
   happy+=(clamp(target,5,98)-happy)*.2;
   s.pop=Math.round(resCap*(.55+.45*happy/100));
-  var pop=s.pop,jobs=s.jobs,adj=-(tax-9)*.03+(happy-60)/200;
+  var pop=s.pop,jobs=s.jobs,adj=-(tax-9)*.03+(happy-60)/200,tb=pol('taxbreak')?.12:0;
   s.dem={
     r:clamp((jobs+12-pop)/(jobs+pop+12)+adj,-1,1),
-    c:clamp((pop*.3+6-com)/(pop*.3+com+6)+adj,-1,1),
-    i:clamp((pop*.4+8-ind)/(pop*.4+ind+8)+adj,-1,1)
+    c:clamp((pop*.3+6-com)/(pop*.3+com+6)+adj+tb,-1,1),
+    i:clamp((pop*.4+8-ind)/(pop*.4+ind+8)+adj+tb,-1,1)
   };
   s.brown=brown;
   return s;
@@ -1008,7 +1106,7 @@ function simDay(){
     if(!hasRoad(x,z)||brown)continue;
     if(c.l===0){if(d>.02&&Math.random()<.10+.25*d){c.l=1;spawnObj(c,x,z,0);changed=true}}
     else if(c.l<3){if(d>.2&&happy>45&&Math.random()<.012+.04*d){c.l++;spawnObj(c,x,z,0);changed=true}}
-    else if(c.l===3&&!c.m&&d>.1&&happy>52&&Math.random()<.02&&merge(x,z,0)){changed=true}
+    else if(c.l===3&&!c.m&&d>.1&&happy>52&&Math.random()<.02*(pol('highrise')?3:1)&&merge(x,z,0)){changed=true}
   }
   if(changed)stats=computeStats();
   day++;burnTick();
@@ -1021,9 +1119,9 @@ function checkGoal(){
 }
 function monthly(){
   var s=stats;
-  var df=DF();
-  var inc=Math.round(((s.pop*tax*.4+s.jobs*tax*.25)*.85+s.trPop*.1)*df.inc)+s.stadiums*250+s.spires*600+s.megas*90;
-  var exp=Math.round((s.roads*1+s.plants*30+s.parks*4+s.stations*25+s.stadiums*40+s.spires*60+s.stops*3+s.metros*80+Math.max(0,s.pop-800)*(1.5+s.pop/2500))*df.exp*scnUpk());
+  var df=DF(),tbk=pol('taxbreak')?.92:1,tour=pol('tourism')?2:1;
+  var inc=Math.round(((s.pop*tax*.4+s.jobs*tax*.25)*.85*tbk+(pol('freetransit')?0:s.trPop*.1))*df.inc)+(s.stadiums*250+s.spires*600+s.plazas*40)*tour+s.megas*90+polIncome();
+  var exp=Math.round((s.roads*1+s.plants*30+s.parks*4+s.stations*25+s.stadiums*40+s.spires*60+s.stops*3+s.metros*80+s.winds*8+s.schools*20+s.hosps*40+s.police*25+s.plazas*3+Math.max(0,s.pop-800)*(1.5+s.pop/2500))*df.exp*scnUpk()*(pol('austerity')?.8:1))+polCost();
   money+=inc-exp;budget={inc:inc,exp:exp,has:true};
   note('Month closed: '+(inc-exp>=0?'+':'-')+'$'+Math.abs(inc-exp).toLocaleString('en-US'));
   save();
@@ -1049,7 +1147,7 @@ function hud(){
   var G=GOALS[goalIdx];
   if(G){var gc=G.cur(s)||0;$('goalText').textContent=G.t;$('goalReward').textContent='+$'+Math.round(G.r*DF().gr).toLocaleString('en-US');$('goalBar').style.width=clamp(gc/G.max,0,1)*100+'%';$('goalNote').textContent=Math.min(gc,G.max).toLocaleString('en-US')+' / '+G.max.toLocaleString('en-US')}
   else{$('goalText').textContent='Every goal complete';$('goalReward').textContent='';$('goalBar').style.width='100%';$('goalNote').textContent='Build whatever you like.'}
-  $('goalBox').hidden=!!scn;renderScn();
+  $('goalBox').hidden=!!scn;renderScn();$('polBtn').textContent='Policies'+(Object.keys(pols).length?' ('+Object.keys(pols).length+' on)':'');
   var tb=document.querySelectorAll('.tool');for(var k=0;k<tb.length;k++){var tl=TOOLS[k],lock=tl.rank!==undefined&&tl.rank>rankIdx;tb[k].classList.toggle('poor',!lock&&tl.cost>money);tb[k].classList.toggle('lock',lock);tb[k].querySelector('.cost').textContent=lock?RANKS[tl.rank][1]:(tl.cost?'$'+tl.cost:'free')}
 }
 function setBar(id,v){var e=$(id);e.style.height=Math.abs(v)*50+'%';if(v>=0){e.style.bottom='50%';e.style.top='auto';e.style.opacity=1}else{e.style.top='50%';e.style.bottom='auto';e.style.opacity=.55}}
@@ -1135,7 +1233,8 @@ var mLine=new THREE.LineSegments(new THREE.EdgesGeometry(mGeo),new THREE.LineBas
 marker.add(mFill);marker.add(mLine);marker.position.y=.05;marker.visible=false;scene.add(marker);
 var rGeo=new THREE.CircleGeometry(FIRE_R+.5,48);rGeo.rotateX(-Math.PI/2);
 var mRing=new THREE.Mesh(rGeo,new THREE.MeshBasicMaterial({color:'#ff8a5a',transparent:true,opacity:.14,depthWrite:false}));mRing.position.y=.01;mRing.visible=false;marker.add(mRing);
-var RING={fire:[FIRE_R,'#ff8a5a'],bus:[BUS_R,'#4ca6ee'],metro:[METRO_R,'#4ca6ee']};
+var INFO={11:'School · lifts mood within 6 tiles',12:'Hospital · lifts mood within 7 tiles',13:'Police station · lifts mood within 6 tiles',14:'Wind farm · +30 MW, no pollution',15:'Plaza · lifts mood within 3 tiles'};
+var RING={fire:[FIRE_R,'#ff8a5a'],bus:[BUS_R,'#4ca6ee'],metro:[METRO_R,'#4ca6ee'],school:[6,'#e0a070'],hosp:[7,'#7ec8f0'],police:[6,'#6a8ad8'],plaza:[3,'#e8d898']};
 function hover(t){
   if(!t||curTool.id==='orbit'){marker.visible=false;return}
   var rr=RING[curTool.id];mRing.visible=!!rr;if(rr){mRing.scale.setScalar((rr[0]+.5)/(FIRE_R+.5));mRing.material.color.set(rr[1])}
@@ -1150,6 +1249,7 @@ function info(t){
   if(c.m){var ai=c.m===1?idx(t.x,t.z):c.a,ac=grid[ai];return 'Mega '+(ac.t===T.RES?'residential complex · '+RES_POP[4]+' homes':ac.t===T.COM?'commercial complex · '+COM_JOBS[4]+' jobs':'industrial complex · '+IND_JOBS[4]+' jobs')}
   if(c.t===T.ROAD)return c.stop?'Road · bus stop (serves '+BUS_R+' tiles)':'Road';
   if(c.t===T.METRO)return 'Metro station · serves '+METRO_R+' tiles';
+  if(INFO[c.t])return INFO[c.t];
   if(c.t===T.RES)return c.l?'Residential, level '+c.l+' · '+RES_POP[c.l]+' homes':'Residential lot'+(hasRoad(t.x,t.z)?'':' · needs a road nearby');
   if(c.t===T.COM)return c.l?'Commercial, level '+c.l+' · '+COM_JOBS[c.l]+' jobs':'Commercial lot'+(hasRoad(t.x,t.z)?'':' · needs a road nearby');
   if(c.t===T.IND)return c.l?'Industrial, level '+c.l+' · '+IND_JOBS[c.l]+' jobs':'Industrial lot'+(hasRoad(t.x,t.z)?'':' · needs a road nearby');
@@ -1202,6 +1302,7 @@ el.addEventListener('pointerleave',function(e){if(e.pointerType==='mouse'&&!drag
 el.addEventListener('wheel',function(e){e.preventDefault();cam.dist=clamp(cam.dist*Math.exp(e.deltaY*.0012),16,80)},{passive:false});
 var keys={};
 window.addEventListener('keydown',function(e){
+  if(!$('pol').hidden){if(e.key==='Escape')$('pol').hidden=true;return}
   if(menuOpen||(e.target&&e.target.tagName==='INPUT'&&e.target.type!=='range'))return;
   var k=e.key.toLowerCase();keys[k]=true;
   for(var i=0;i<TOOLS.length;i++){if(TOOLS[i].key===e.key){setTool(TOOLS[i].id);return}}
@@ -1216,7 +1317,7 @@ function save(){
   try{
     var t='',l='',m='',p='';
     for(var i=0;i<grid.length;i++){var c=grid[i];t+=c.t.toString(36);l+=c.l;m+=c.m;p+=c.stop?1:0}
-    localStorage.setItem(SAVE,JSON.stringify({v:2,t:t,l:l,m:m,p:p,money:money,day:day,tax:tax,happy:happy,tod:tod,name:cityName,goal:goalIdx,diff:diff,
+    localStorage.setItem(SAVE,JSON.stringify({v:2,t:t,l:l,m:m,p:p,money:money,day:day,tax:tax,happy:happy,tod:tod,name:cityName,goal:goalIdx,diff:diff,pol:Object.keys(pols),
       scn:scn&&!scn.done?{id:scn.id,start:scn.start,startPop:scn.startPop,hold:scn.hold}:null}));
   }catch(_){}
 }
@@ -1238,7 +1339,7 @@ function load(){
       grid[i].l=4;
     }
     for(i=0;i<N*N;i++){var c2=grid[i];if(c2.l>0&&c2.m!==2)spawnObj(c2,i%N,Math.floor(i/N),Math.random()*1.2)}
-    money=d.money;day=d.day;tax=d.tax;happy=d.happy;tod=d.tod;cityName=d.name||cityName;goalIdx=d.goal||0;
+    money=d.money;day=d.day;tax=d.tax;happy=d.happy;tod=d.tod;cityName=d.name||cityName;goalIdx=d.goal||0;pols={};(d.pol||[]).forEach(function(k){pols[k]=true});
     diff=DIFFS[d.diff]?d.diff:'normal';
     scn=d.scn&&SCN[d.scn.id]?{id:d.scn.id,start:d.scn.start,startPop:d.scn.startPop,hold:d.scn.hold||0,done:false}:null;
     loadedV1=d.v===1;
@@ -1264,9 +1365,9 @@ function seed(){
 var PRESETS={
  blank:{name:'Blank land',blurb:'Empty island, your rules. Roads first.',tag:'Start from zero',money:20000},
  hamlet:{name:'Hamlet',blurb:'A few streets and a dream. The classic start.',tag:'~120 residents',seed:true,money:20000},
- town:{name:'Town',blurb:'A main street, a grid of homes, a small industrial edge.',tag:'~1,100 residents',R:8,money:45000,day:240,fill:.95,lvl:.5,mega:0,stations:1,stops:2,metro:0},
- city:{name:'City',blurb:'Dense downtown, suburbs, a stadium and a fire network.',tag:'~3,200 residents',R:11,money:120000,day:600,fill:.98,lvl:.75,mega:.5,stations:3,stops:6,metro:0,stadium:1},
- metropolis:{name:'Metropolis',blurb:'Skyline, mega complexes, metro. Heavy on weak GPUs.',tag:'~6,500 residents',R:14,money:90000,day:1080,fill:1,lvl:.9,mega:.8,stations:5,stops:10,metro:3,stadium:1,spire:1}
+ town:{name:'Town',blurb:'A main street, a grid of homes, a small industrial edge.',tag:'~1,100 residents',R:8,money:45000,day:240,fill:.95,lvl:.5,mega:0,stations:1,stops:2,metro:0,school:1,police:1,wind:1},
+ city:{name:'City',blurb:'Dense downtown, suburbs, a stadium and a fire network.',tag:'~3,200 residents',R:11,money:120000,day:600,fill:.98,lvl:.75,mega:.5,stations:3,stops:6,metro:0,stadium:1,school:2,police:2,hosp:1,plaza:2,wind:2},
+ metropolis:{name:'Metropolis',blurb:'Skyline, mega complexes, metro. Heavy on weak GPUs.',tag:'~6,500 residents',R:14,money:90000,day:1080,fill:1,lvl:.9,mega:.8,stations:5,stops:10,metro:3,stadium:1,spire:1,school:3,police:3,hosp:2,plaza:4,wind:3}
 };
 function genCity(P,r){
   var cx=HALF,cz=HALF,R=P.R,sp=5,road={},spec={},gap={},i,x,z;
@@ -1296,7 +1397,9 @@ function genCity(P,r){
   if(P.stadium)reserve(cx-R*.5,cz+R*.35,'stadium');
   if(P.spire)reserve(cx-1.5,cz-1.5,'spire');
   for(k=0;k<(P.metro||0);k++){a=k/P.metro*6.283+1.1;reserve(cx+Math.cos(a)*R*.4,cz+Math.sin(a)*R*.4,'metro')}
-  var KIND={fire:T.FIRE,stadium:T.STADIUM,spire:T.SPIRE,metro:T.METRO};
+  function spread(kind,n,rf,off){for(var q=0;q<(n||0);q++){var an=q/n*6.283+off;reserve(cx+Math.cos(an)*R*rf,cz+Math.sin(an)*R*rf,kind)}}
+  spread('school',P.school,.5,2.2);spread('police',P.police,.45,.4);spread('hosp',P.hosp,.35,3.9);spread('plaza',P.plaza,.25,.9);spread('wind',P.wind,.88,5.2);
+  var KIND={fire:T.FIRE,stadium:T.STADIUM,spire:T.SPIRE,metro:T.METRO,school:T.SCHOOL,police:T.POLICE,hosp:T.HOSP,plaza:T.PLAZA,wind:T.WIND};
   function put1(x,z,t,l){setTile(x,z,t,0,r()*1.4);if(l){var c=grid[idx(x,z)];c.l=l;spawnObj(c,x,z,r()*1.4)}}
   for(z=cz-R;z<=cz+R;z++)for(x=cx-R;x<=cx+R;x++){
     if(!inb(x,z))continue;i=idx(x,z);
@@ -1315,7 +1418,7 @@ function genCity(P,r){
     put1(x,z,t,t===T.PARK?0:l);
   }
   stats=computeStats();
-  var need=Math.ceil((stats.use*1.1+8)/PLANT_MW)-stats.plants,spots=[];
+  var need=Math.ceil((stats.use*1.1+8-stats.supply)/PLANT_MW),spots=[];
   for(z=0;z<N;z++)for(x=0;x<N;x++){
     var d2=Math.hypot(x-cx,z-cz),c2=grid[idx(x,z)];
     if(d2>R+.5||road[idx(x,z)]||spec[idx(x,z)]||c2.m||c2.t===T.POWER)continue;
@@ -1347,7 +1450,7 @@ function genCity(P,r){
 function eachTile(fn){for(var z=0;z<N;z++)for(var x=0;x<N;x++)fn(x,z,grid[idx(x,z)])}
 var SCN={
  blackout:{name:'Blackout',blurb:'A big city with one working power plant. Keep the lights on.',tag:'City · 8 months',preset:'city',limit:240,money:18000,hold:12,
-  setup:function(){var kept=false;eachTile(function(x,z,c){if(c.t===T.POWER){if(kept)clearTile(x,z);else kept=true}});happy=38},
+  setup:function(){var kept=false;eachTile(function(x,z,c){if(c.t===T.WIND)clearTile(x,z);else if(c.t===T.POWER){if(kept)clearTile(x,z);else kept=true}});happy=38},
   lines:function(s){return [{t:'Power covers demand ('+s.use+'/'+s.supply+' MW)',ok:!s.brown},{t:'Mood at 58% or higher ('+Math.round(happy)+'%)',ok:happy>=58}]},
   win:function(s){return !s.brown&&happy>=58},
   lose:function(s){return money<-20000?'The treasury ran dry before the grid recovered.':null},
@@ -1414,7 +1517,7 @@ function startGame(cfg){
   wipe();
   var r=rng((Math.random()*1e9)|0);
   tax=9;happy=P.R?66:62;budget={inc:0,exp:0,has:false};day=P.day||0;
-  money=Math.round(P.money*DF().money);goalIdx=0;rankIdx=0;lastHud='';
+  money=Math.round(P.money*DF().money);goalIdx=0;rankIdx=0;lastHud='';pols={};
   cityName=CITY_NAMES[(Math.random()*CITY_NAMES.length)|0];
   if(P.seed)seed();else if(P.R)genCity(P,r);
   if(sd){scn={id:cfg.scn,start:day,startPop:0,hold:0,done:false};money=sd.money;sd.setup()}
@@ -1447,6 +1550,26 @@ $('mdiff').addEventListener('click',function(e){var b=e.target.closest('button')
 $('mgo').addEventListener('click',function(){
   closeMenu();
   startGame(menuSel.tab==='sandbox'?{preset:menuSel.preset,diff:menuSel.diff}:{scn:menuSel.scn,diff:menuSel.diff});
+});
+function renderPol(){
+  var h='';
+  POLS.forEach(function(p){
+    var lock=p.rank>rankIdx,on=pol(p.id),c=p.cost(stats),inc=p.income?p.income(stats):0;
+    var tail=inc?'earns +$'+inc.toLocaleString('en-US')+'/mo':(c?'costs $'+c.toLocaleString('en-US')+'/mo':(p.tag||'free'));
+    h+='<button class="card'+(on?' on':'')+(lock?' lock':'')+'" data-k="'+p.id+'" type="button"><b>'+p.name+'</b><span>'+p.desc+'</span><em>'+(lock?'Unlocks at '+RANKS[p.rank][1]:(on?'ON · ':'OFF · ')+tail)+'</em></button>';
+  });
+  $('pcards').innerHTML=h;
+}
+function openPol(){renderPol();$('pol').hidden=false}
+$('polBtn').addEventListener('click',openPol);
+$('pclose').addEventListener('click',function(){$('pol').hidden=true});
+$('pcards').addEventListener('click',function(e){
+  var b=e.target.closest('.card');if(!b)return;
+  var p=POLS.filter(function(q){return q.id===b.dataset.k})[0];if(!p)return;
+  if(p.rank>rankIdx){note(p.name+' unlocks at '+RANKS[p.rank][1]);return}
+  if(pols[p.id])delete pols[p.id];else pols[p.id]=true;
+  note(p.name+(pols[p.id]?' enacted':' repealed'));
+  stats=computeStats();hud();save();renderPol();
 });
 $('mcont').addEventListener('click',function(){closeMenu()});
 
@@ -1531,6 +1654,7 @@ function frame(now){
     else if(o.scale.y!==1)o.scale.y=1;
     var ud=o.userData;
     if(ud.blink){for(var b=0;b<ud.blink.length;b++)ud.blink[b].visible=blinkOn}
+    if(ud.spin){for(var sp2=0;sp2<ud.spin.length;sp2++)ud.spin[sp2].rotation.z+=dt*1.6}
     if(ud.emit&&age>.7){for(var q=0;q<ud.emit.length;q++){var em=ud.emit[q];if(Math.random()<dt*(em.k==='steam'?2.2:1.2))spawnPuff(o.position.x+em.x,em.y,o.position.z+em.z,em.k)}}
   }
   for(var p=0;p<puffs.length;p++){

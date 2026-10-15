@@ -29,7 +29,7 @@ Or from the command line: `npx vercel --prod`.
 | Pan | Shift + right-drag, WASD or arrow keys |
 | Zoom | Mouse wheel, `+` / `-`, or pinch |
 | Rotate | `Q` / `E` |
-| Tools | `1`–`8`, `F` fire station, `B` bus stop, `G` stadium, `H` spire, `M` metro station |
+| Tools | `1`–`8`, `F` fire station, `B` bus stop, `G` stadium, `H` spire, `M` metro station, `J` school, `K` police, `L` hospital, `N` wind farm, `O` plaza |
 | Effects on/off | `X` |
 | Pause | Space |
 
@@ -45,6 +45,8 @@ On touch screens, pick the Look around tool to orbit, and use two fingers to pan
 - Landmarks unlock by rank: the Stadium at Large town and the Spire at City. They lift mood and earn monthly income.
 - Mega complexes: when a 2x2 patch of level 3 lots of the same type is in demand and the city is happy, it merges into one big complex (more homes or jobs, bigger model). Bulldoze or let demand collapse and it breaks back into regular lots.
 - Transit: bus stops go on road tiles and cover 4 tiles, metro stations (Large town) cover 7. Residents in range raise mood, pay fares and cut car traffic. Buses run the streets.
+- Services: School, Police station, Wind farm (Village), Hospital and Plaza (Town). Each lifts mood for homes in range (school 6 tiles, police 6, hospital 7, plaza 3). Wind farms add 30 MW with no pollution.
+- Policies (the **Policies** button): Clean air act, Green belt, Fire code, Free transit, Business tax break, Night economy, Tourism board, High-rise incentives and Austerity. Each one trades money, taxes or mood for something else, and the higher ones unlock with rank.
 - Past about 800 residents the city also pays for services, so very big cities are not free money. Watch the tax rate.
 - Fires start at random once the city is a few weeks old. A fire station puts out any fire within 6 tiles. Without one, fires spread and burn lots down, so build a station or bulldoze a firebreak.
 - The game autosaves to your browser's local storage.
