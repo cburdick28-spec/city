@@ -29,7 +29,7 @@ Or from the command line: `npx vercel --prod`.
 | Pan | Shift + right-drag, WASD or arrow keys |
 | Zoom | Mouse wheel, `+` / `-`, or pinch |
 | Rotate | `Q` / `E` |
-| Tools | `1`–`8`, `F` fire station, `B` bus stop, `G` stadium, `H` spire, `M` metro station, `J` school, `K` police, `L` hospital, `N` wind farm, `O` plaza, `I` library, `V` solar, `C` mall, `Y` museum, `T` amusement park, `U` university, `Z` airport |
+| Tools | `1`–`8`, `F` fire station, `B` bus stop, `G` stadium, `H` spire, `M` metro station, `J` school, `K` police, `L` hospital, `N` wind farm, `O` plaza, `I` library, `V` solar, `C` mall, `Y` museum, `T` amusement park, `U` university, `Z` airport, `R` upgrade |
 | Effects on/off | `X` |
 | Pause | Space |
 
@@ -46,7 +46,9 @@ On touch screens, pick the Look around tool to orbit, and use two fingers to pan
 - Mega complexes: when a 2x2 patch of level 3 lots of the same type is in demand and the city is happy, it merges into one big complex (more homes or jobs, bigger model). Bulldoze or let demand collapse and it breaks back into regular lots.
 - Transit: bus stops go on road tiles and cover 4 tiles, metro stations (Large town) cover 7. Residents in range raise mood, pay fares and cut car traffic. Buses run the streets.
 - Services: School, Police station, Wind farm (Village), Hospital and Plaza (Town). Each lifts mood for homes in range (school 6 tiles, police 6, hospital 7, plaza 3). Wind farms add 30 MW with no pollution.
-- Bigger landmarks: Library (Village), Solar farm (+55 MW, Town), Shopping mall and Museum (Large town), Amusement park and University (City), Airport (Metropolis). Landmarks earn monthly income, add jobs or lift mood; the Tourism board policy doubles the tourist ones.
+- Bigger landmarks: Library (Village), Solar farm (+55 MW, Town), Shopping mall and Museum (Large town), Amusement park and University (City), Airport (City). Landmarks earn monthly income, add jobs or lift mood; the Tourism board policy doubles the tourist ones.
+- Upgrades: pick the Upgrade tool (`R`) and click a service or landmark to level it up for a fee. School becomes a Campus, Hospital a Medical center, Fire station a Fire HQ (9 tile reach), Airport an International airport, and so on. Upgraded buildings get a gold ring and star, reach 50% further, and earn more (or add power and jobs) for extra upkeep.
+- Bigger map: the island is now 56 x 56 tiles. Older 36 x 36 saves are centered in it automatically.
 - Night life: the mall sign, amusement park and airport runway lights glow after dark, and an airport sends jets landing and taking off.
 - Policies (the **Policies** button): Clean air act, Green belt, Fire code, Free transit, Business tax break, Night economy, Tourism board, High-rise incentives and Austerity. Each one trades money, taxes or mood for something else, and the higher ones unlock with rank.
 - Past about 800 residents the city also pays for services, so very big cities are not free money. Watch the tax rate.
@@ -61,7 +63,7 @@ Bloom, a soft miniature-style blur at the screen edges and a vignette are on by 
 
 The start menu (also behind the **New game / menu** button) has two tabs:
 
-- **Sandbox**: Blank land, Hamlet, Town, City and Metropolis. The Town, City and Metropolis presets are generated fresh each time, so no two are the same.
+- **Sandbox**: Blank land, Hamlet, Town, City, Metropolis and Megacity (very heavy). The Town, City and Metropolis presets are generated fresh each time, so no two are the same.
 - **Scenarios**: Blackout (one power plant left), Firestorm (fires burning, no fire station), Debt Spiral (deep in debt with heavy upkeep) and Ghost Town (the town is half empty and unhappy). Each has objectives, a time limit and a win/lose screen. They start paused so you can plan.
 
 Difficulty (Easy, Normal, Hard, Brutal) changes starting cash, income, upkeep, fire frequency, citizen mood and goal rewards. Metropolis is heavy; the game drops effects and then shadows by itself if the frame rate falls.

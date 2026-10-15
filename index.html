@@ -256,7 +256,7 @@ var $=function(id){return document.getElementById(id)};
 if(!window.THREE){var t=$('toast');t.hidden=false;t.textContent='The 3D engine could not load. Check your connection and reload.';return;}
 
 /* ---------- constants ---------- */
-var N=36,HALF=N/2,DAY=0.7,SAVE='blocktown-save-v1';
+var N=56,HALF=N/2,DAY=0.7,SAVE='blocktown-save-v1';
 var T={E:0,ROAD:1,RES:2,COM:3,IND:4,POWER:5,PARK:6,FIRE:7,STADIUM:8,SPIRE:9,METRO:10,SCHOOL:11,HOSP:12,POLICE:13,WIND:14,PLAZA:15,LIB:16,SOLAR:17,MALL:18,UNI:19,MUSEUM:20,AMUSE:21,AIRPORT:22};
 var NAMES=['Empty','Road','Residential','Commercial','Industrial','Power plant','Park','Fire station','Stadium','Spire','Metro station','School','Hospital','Police station','Wind farm','Plaza','Library','Solar farm','Shopping mall','University','Museum','Amusement park','Airport'];
 var RES_POP=[0,8,22,48,230],COM_JOBS=[0,5,14,34,170],IND_JOBS=[0,9,22,45,210];
@@ -285,7 +285,8 @@ var TOOLS=[
  {id:'museum',name:'Museum',cost:2200,color:'#efe9d9',t:T.MUSEUM,rank:3,key:'y'},
  {id:'amuse',name:'Amusement park',cost:5500,color:'#e0533f',t:T.AMUSE,rank:4,key:'t'},
  {id:'uni',name:'University',cost:6500,color:'#a8574a',t:T.UNI,rank:4,key:'u'},
- {id:'airport',name:'Airport',cost:14000,color:'#8f969d',t:T.AIRPORT,rank:5,key:'z'},
+ {id:'airport',name:'Airport',cost:14000,color:'#8f969d',t:T.AIRPORT,rank:4,key:'z'},
+ {id:'upg',name:'Upgrade',cost:0,label:'varies',color:'#e8c45a',key:'r'},
  {id:'bull',name:'Bulldoze',cost:5,color:'#f0695a',key:'8'}
 ];
 var RANKS=[[0,'Hamlet'],[100,'Village'],[400,'Town'],[1000,'Large town'],[2500,'City'],[6000,'Metropolis'],[12000,'Megacity']];
@@ -308,6 +309,7 @@ var GOALS=[
  {t:'Reach 6,000 residents',r:20000,max:6000,cur:function(s){return s.pop}},
  {t:'Bank $100,000',r:25000,max:100000,cur:function(){return Math.floor(money)}},
  {t:'Open a school, hospital and police station',r:6000,max:3,cur:function(s){return Math.min(1,s.schools)+Math.min(1,s.hosps)+Math.min(1,s.police)}},
+ {t:'Upgrade a building',r:8000,max:1,cur:function(s){return s.ups}},
  {t:'Open an airport',r:30000,max:1,cur:function(s){return s.airports}}
 ];
 
@@ -329,6 +331,22 @@ var pols={};
 function pol(id){return !!pols[id]}
 var SERV={11:{r:6,use:3,mood:6},12:{r:7,use:5,mood:6},13:{r:6,use:3,mood:5},15:{r:3,use:0,mood:6},16:{r:5,use:2,mood:5},19:{r:8,use:8,mood:8},20:{r:5,use:2,mood:4},21:{r:6,use:6,mood:6}};
 var BLD={16:{exp:15},17:{exp:12,mw:55},18:{exp:40,use:14,jobs:40},19:{exp:90,inc:300},20:{exp:30,inc:200,tour:1},21:{exp:60,inc:350,tour:1},22:{exp:150,use:18,inc:1000,tour:1,jobs:60}};
+var UPG={
+ 7:{n:'Fire HQ',cost:1500,exp:30},
+ 8:{n:'Arena',cost:8000,exp:80,inc:450},
+ 11:{n:'Campus',cost:1200,exp:35},
+ 12:{n:'Medical center',cost:2500,exp:70},
+ 13:{n:'Precinct HQ',cost:1400,exp:40},
+ 14:{n:'Wind array',cost:900,exp:10,mw:30},
+ 15:{n:'Grand plaza',cost:500,exp:10,inc:40},
+ 16:{n:'Grand library',cost:1200,exp:25},
+ 17:{n:'Solar array',cost:1800,exp:15,mw:60},
+ 18:{n:'Mega mall',cost:6000,exp:60,jobs:60,inc:250},
+ 19:{n:'Research campus',cost:9000,exp:100,inc:500},
+ 20:{n:'Grand museum',cost:5000,exp:50,inc:350},
+ 21:{n:'Resort park',cost:9000,exp:90,inc:600},
+ 22:{n:'International airport',cost:25000,exp:250,inc:2200,jobs:100,use:12}
+};
 var POLS=[
  {id:'cleanair',name:'Clean air act',rank:1,desc:'Pollution hurts mood 60% less. Factories pay for scrubbers.',cost:function(s){return Math.round(s.ind*.3)}},
  {id:'greenbelt',name:'Green belt',rank:1,desc:'Parks lift mood 60% more. Needs maintenance crews.',cost:function(s){return s.parks*6}},
@@ -345,7 +363,7 @@ function polIncome(){var t=0;POLS.forEach(function(p){if(pol(p.id)&&p.income)t+=
 function scnFire(){return scn&&!scn.done&&SCN[scn.id].fire||1}
 function scnFireCap(){return scn&&!scn.done&&SCN[scn.id].fireCap||1}
 function scnUpk(){return scn&&!scn.done&&SCN[scn.id].upk||1}
-var grid=[];for(var i=0;i<N*N;i++)grid.push({t:0,l:0,obj:null,plot:null,road:null,m:0,a:-1,stop:false});
+var grid=[];for(var i=0;i<N*N;i++)grid.push({t:0,l:0,obj:null,plot:null,road:null,m:0,a:-1,stop:false,up:0});
 function idx(x,z){return z*N+x}
 function inb(x,z){return x>=0&&z>=0&&x<N&&z<N}
 function roadAt(x,z){return inb(x,z)&&grid[idx(x,z)].t===T.ROAD}
@@ -362,7 +380,7 @@ renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
 var el=renderer.domElement;el.id='view';$('app').insertBefore(el,$('app').firstChild);
 var scene=new THREE.Scene();
 scene.background=new THREE.Color('#8cc5ec');
-scene.fog=new THREE.Fog('#8cc5ec',70,170);
+scene.fog=new THREE.Fog('#8cc5ec',100,290);
 var camera=new THREE.PerspectiveCamera(42,1,0.5,400);
 var cam={yaw:0.78,pitch:0.78,dist:34,tx:0,tz:0};
 function applyCam(){
@@ -404,7 +422,7 @@ initFX();
 var hemi=new THREE.HemisphereLight('#bfe0ff','#5d7a4a',0.7);scene.add(hemi);
 var sun=new THREE.DirectionalLight('#fff1d6',1.05);
 sun.castShadow=true;sun.shadow.mapSize.set(2048,2048);
-var sc=sun.shadow.camera;sc.left=-30;sc.right=30;sc.top=30;sc.bottom=-30;sc.near=1;sc.far=170;
+var sc=sun.shadow.camera;sc.left=-38;sc.right=38;sc.top=38;sc.bottom=-38;sc.near=1;sc.far=170;
 sun.shadow.bias=-0.0006;sun.shadow.normalBias=0.03;
 scene.add(sun);scene.add(sun.target);
 var moon=new THREE.DirectionalLight('#6f8fff',0);scene.add(moon);
@@ -424,10 +442,10 @@ var rippleTex=null,foamMesh=null;
   ripple.rotation.x=-Math.PI/2;ripple.position.y=-0.53;scene.add(ripple);rippleTex=rt;
   function ringTex(size,fn){var c=document.createElement('canvas');c.width=c.height=size;var g=c.getContext('2d');fn(g,size);return new THREE.CanvasTexture(c)}
   var shT=ringTex(256,function(g,S){for(var i=0;i<=28;i++){var a=Math.pow(i/28,1.7)*.62;g.strokeStyle='rgba(120,222,214,'+a.toFixed(3)+')';g.lineWidth=2;g.strokeRect(i+1,i+1,S-2*i-2,S-2*i-2)}});
-  var shallows=new THREE.Mesh(new THREE.PlaneGeometry(46,46),new THREE.MeshBasicMaterial({map:shT,transparent:true,depthWrite:false}));
+  var shallows=new THREE.Mesh(new THREE.PlaneGeometry(N+10,N+10),new THREE.MeshBasicMaterial({map:shT,transparent:true,depthWrite:false}));
   shallows.rotation.x=-Math.PI/2;shallows.position.y=-.5;scene.add(shallows);
   var fT=ringTex(256,function(g,S){g.strokeStyle='rgba(255,255,255,.9)';g.lineWidth=6;g.strokeRect(7,7,S-14,S-14);g.strokeStyle='rgba(255,255,255,.35)';g.lineWidth=10;g.strokeRect(11,11,S-22,S-22)});
-  foamMesh=new THREE.Mesh(new THREE.PlaneGeometry(38,38),new THREE.MeshBasicMaterial({map:fT,transparent:true,opacity:.6,depthWrite:false}));
+  foamMesh=new THREE.Mesh(new THREE.PlaneGeometry(N+2,N+2),new THREE.MeshBasicMaterial({map:fT,transparent:true,opacity:.6,depthWrite:false}));
   foamMesh.rotation.x=-Math.PI/2;foamMesh.position.y=-.48;scene.add(foamMesh);
   var base=new THREE.Mesh(new THREE.BoxGeometry(N+0.6,0.8,N+0.6),new THREE.MeshStandardMaterial({color:'#b79a6c',roughness:.95}));
   base.position.y=-0.41;base.receiveShadow=true;scene.add(base);
@@ -950,14 +968,21 @@ function clearTile(x,z){
   if(c.obj){disposeObj(c.obj);c.obj=null}
   if(c.plot){world.remove(c.plot);c.plot=null}
   if(c.road){disposeObj(c.road);c.road=null}
-  c.t=T.E;c.l=0;c.m=0;c.a=-1;c.stop=false;
+  c.t=T.E;c.l=0;c.m=0;c.a=-1;c.stop=false;c.up=0;
   if(was===T.ROAD){for(var d=0;d<4;d++)refreshRoad(x+DIRS[d][0],z+DIRS[d][1])}
+}
+var starGeo=new THREE.OctahedronGeometry(.13,0),crownGeo=new THREE.TorusGeometry(.46,.02,6,32);
+function addAnnex(o,t){
+  var ring=new THREE.Mesh(crownGeo.clone(),neonMat('#ffd54a',1));ring.rotation.x=Math.PI/2;ring.position.y=.05;o.add(ring);
+  var star=new THREE.Mesh(starGeo.clone(),neonMat('#ffd54a',1.3));star.position.y=(t===12||t===19||t===22||t===8)?1.45:1.15;o.add(star);
+  o.userData.spin=(o.userData.spin||[]).concat([star]);
 }
 function spawnObj(c,x,z,delay){
   if(c.obj){disposeObj(c.obj);c.obj=null}
   if(c.t===T.ROAD||c.t===T.E||c.m===2)return;
   if((c.t===T.RES||c.t===T.COM||c.t===T.IND)&&c.l===0)return;
   var big=c.l===4,o=big?buildMega(c.t,x,z):buildObj(c.t,c.l,x,z);o.position.set(wx(x)+(big?.5:0),0,wx(z)+(big?.5:0));o.userData.born=time+(delay||0);o.scale.y=.001;
+  if(c.up&&UPG[c.t])addAnnex(o,c.t);
   world.add(o);c.obj=o;
 }
 function canMerge(x,z){
@@ -1030,7 +1055,7 @@ function placeCar(car){
   car.ax=r[0];car.az=r[1];car.bx=n[0];car.bz=n[1];car.t=0;car.g.visible=true;return true;
 }
 function syncCars(){
-  var want=Math.min(46,Math.floor(stats.roads*.7*(1-(pol('freetransit')?.6:.4)*(stats.transit||0))));
+  var want=Math.min(70,Math.floor(stats.roads*.7*(1-(pol('freetransit')?.6:.4)*(stats.transit||0))));
   while(cars.length<want){var c=makeCar();if(!placeCar(c)){scene.remove(c.g);break}cars.push(c)}
   while(cars.length>want){var c2=cars.pop();scene.remove(c2.g)}
   syncBuses();syncJets();
@@ -1096,7 +1121,7 @@ function updateJets(dt){
 }
 function updateBoats(dt){
   for(var i=0;i<boats.length;i++){var b=boats[i];b.a+=dt*b.sp;b.g.position.set(Math.cos(b.a)*b.r,Math.sin(time*1.4+i)*.02,Math.sin(b.a)*b.r);b.g.rotation.y=-b.a;}
-  plane.a+=dt*.08;plane.g.position.set(Math.cos(plane.a)*34,16+Math.sin(plane.a*2)*1.2,Math.sin(plane.a)*34);plane.g.rotation.y=-plane.a;
+  plane.a+=dt*.08;plane.g.position.set(Math.cos(plane.a)*(HALF+16),16+Math.sin(plane.a*2)*1.2,Math.sin(plane.a)*(HALF+16));plane.g.rotation.y=-plane.a;
   if(rippleTex){rippleTex.offset.x+=dt*.012;rippleTex.offset.y+=dt*.006}
   if(foamMesh)foamMesh.material.opacity=.5+.25*Math.sin(time*1.6);
 }
@@ -1108,7 +1133,7 @@ function makePed(){
   scene.add(g);return {g:g,ax:0,az:0,bx:0,bz:0,t:0,sp:.45+Math.random()*.3};
 }
 function syncPeds(){
-  var want=stats.roads>0?Math.min(40,Math.floor(stats.pop/10)):0;
+  var want=stats.roads>0?Math.min(60,Math.floor(stats.pop/10)):0;
   while(peds.length<want){var c=makePed();if(!placeCar(c)){scene.remove(c.g);break}peds.push(c)}
   while(peds.length>want){scene.remove(peds.pop().g)}
 }
@@ -1131,7 +1156,7 @@ function makeBus(){
   scene.add(g);return {g:g,ax:0,az:0,bx:0,bz:0,t:0,sp:.8+Math.random()*.3};
 }
 function syncBuses(){
-  var want=stats.stops?Math.min(8,Math.ceil(stats.stops*.8)+(stats.metros?1:0)):0;
+  var want=stats.stops?Math.min(12,Math.ceil(stats.stops*.8)+(stats.metros?1:0)):0;
   while(buses.length<want){var c=makeBus();if(!placeCar(c)){scene.remove(c.g);break}buses.push(c)}
   while(buses.length>want)scene.remove(buses.pop().g);
 }
@@ -1151,7 +1176,7 @@ function igniteTile(x,z){
   world.add(g);fires[i]={g:g,age:0,x:x,z:z};
 }
 function extinguish(i){var f=fires[i];if(!f)return;world.remove(f.g);delete fires[i]}
-function covered(x,z){var st=stats.st||[];for(var i=0;i<st.length;i++){if(Math.hypot(x-st[i][0],z-st[i][1])<=FIRE_R)return true}return false}
+function covered(x,z){var st=stats.st||[];for(var i=0;i<st.length;i++){if(Math.hypot(x-st[i][0],z-st[i][1])<=(st[i][2]||FIRE_R))return true}return false}
 function burnTick(){
   var keys=Object.keys(fires),i;
   for(i=0;i<keys.length;i++){
@@ -1182,12 +1207,13 @@ function animFires(dt){
 
 /* ---------- simulation ---------- */
 function computeStats(){
-  var resCap=0,com=0,ind=0,plants=0,parks=0,roads=0,use=0,polluted=0,stations=0,stadiums=0,spires=0,metros=0,stops=0,megas=0,trPop=0,winds=0,mw=0,ap=[],bx={exp:0,inc:0,tour:0},bn={},sv=[],svn={},svPop={},st=[],tr=[],x,z,c;
+  var resCap=0,com=0,ind=0,plants=0,parks=0,roads=0,use=0,polluted=0,stations=0,stadiums=0,spires=0,metros=0,stops=0,megas=0,trPop=0,winds=0,mw=0,ap=[],ups=0,bx={exp:0,inc:0,tour:0},bn={},sv=[],svn={},svPop={},st=[],tr=[],x,z,c;
   for(z=0;z<N;z++)for(x=0;x<N;x++){
     c=grid[idx(x,z)];
     if(c.m===2)continue;
     if(c.m===1)megas++;
-    if(SERV[c.t]){svn[c.t]=(svn[c.t]||0)+1;sv.push([x,z,SERV[c.t].r,c.t]);use+=SERV[c.t].use}
+    if(SERV[c.t]){svn[c.t]=(svn[c.t]||0)+1;sv.push([x,z,SERV[c.t].r*(c.up?1.5:1),c.t]);use+=SERV[c.t].use}
+    var U=c.up&&UPG[c.t];if(U){ups++;bx.exp+=U.exp||0;bx.inc+=U.inc||0;if(U.inc&&BLD[c.t]&&BLD[c.t].tour)bx.tour+=U.inc;mw+=U.mw||0;com+=U.jobs||0;use+=U.use||0}
     var B=BLD[c.t];if(c.t===T.AIRPORT)ap.push([x,z]);if(B){bn[c.t]=(bn[c.t]||0)+1;use+=(B.use||0);bx.exp+=B.exp;bx.inc+=(B.inc||0);if(B.tour)bx.tour+=B.inc||0;mw+=B.mw||0;com+=B.jobs||0}
     switch(c.t){
       case T.ROAD:roads++;if(c.stop){stops++;tr.push([x,z,BUS_R])}break;
@@ -1196,7 +1222,7 @@ function computeStats(){
       case T.IND:ind+=IND_JOBS[c.l];use+=USE_I[c.l];break;
       case T.POWER:plants++;break;
       case T.PARK:parks++;break;
-      case T.FIRE:stations++;st.push([x,z]);use+=2;break;
+      case T.FIRE:stations++;st.push([x,z,c.up?9:FIRE_R]);use+=2;break;
       case T.STADIUM:stadiums++;use+=20;break;
       case T.SPIRE:spires++;use+=12;break;
       case T.METRO:metros++;use+=6;tr.push([x,z,METRO_R]);break;
@@ -1215,7 +1241,7 @@ function computeStats(){
   }
   var pf=(resCap?polluted/resCap:0)*(pol('cleanair')?.4:1),svf={},svMood=0;
   for(var sk in SERV){svf[sk]=resCap?(svPop[sk]||0)/resCap:0;svMood+=SERV[sk].mood*svf[sk]}
-  var s={pop:0,jobs:com+ind,com:com,ind:ind,use:use,supply:plants*PLANT_MW+winds*30+mw,bx:bx,ap:ap,airports:bn[22]||0,winds:winds,schools:svn[11]||0,hosps:svn[12]||0,police:svn[13]||0,plazas:svn[15]||0,svf:svf,roads:roads,plants:plants,parks:parks,pf:pf,resCap:resCap,stations:stations,stadiums:stadiums,spires:spires,metros:metros,stops:stops,megas:megas,trPop:trPop,transit:resCap?trPop/resCap:0,st:st};
+  var s={pop:0,ups:ups,jobs:com+ind,com:com,ind:ind,use:use,supply:plants*PLANT_MW+winds*30+mw,bx:bx,ap:ap,airports:bn[22]||0,winds:winds,schools:svn[11]||0,hosps:svn[12]||0,police:svn[13]||0,plazas:svn[15]||0,svf:svf,roads:roads,plants:plants,parks:parks,pf:pf,resCap:resCap,stations:stations,stadiums:stadiums,spires:spires,metros:metros,stops:stops,megas:megas,trPop:trPop,transit:resCap?trPop/resCap:0,st:st};
   var brown=use>s.supply;
   var parkScore=18*Math.min(1,parks*60/(resCap+60))*(pol('greenbelt')?1.6:1);
   var target=64+parkScore-30*pf-(tax-9)*2.5-(brown?18:0)-((resCap>s.jobs*1.5+10)?8:0)+Math.min(14,stadiums*7+spires*5)-Math.min(10,Object.keys(fires).length*4)+10*s.transit+svMood+(pol('freetransit')?4*s.transit:0)-(pol('nightlife')?2:0)-(pol('highrise')?2:0)-(pol('austerity')?4:0)+DF().mood;
@@ -1286,7 +1312,7 @@ function hud(){
   if(G){var gc=G.cur(s)||0;$('goalText').textContent=G.t;$('goalReward').textContent='+$'+Math.round(G.r*DF().gr).toLocaleString('en-US');$('goalBar').style.width=clamp(gc/G.max,0,1)*100+'%';$('goalNote').textContent=Math.min(gc,G.max).toLocaleString('en-US')+' / '+G.max.toLocaleString('en-US')}
   else{$('goalText').textContent='Every goal complete';$('goalReward').textContent='';$('goalBar').style.width='100%';$('goalNote').textContent='Build whatever you like.'}
   $('goalBox').hidden=!!scn;renderScn();$('polBtn').textContent='Policies'+(Object.keys(pols).length?' ('+Object.keys(pols).length+' on)':'');
-  var tb=document.querySelectorAll('.tool');for(var k=0;k<tb.length;k++){var tl=TOOLS[k],lock=tl.rank!==undefined&&tl.rank>rankIdx;tb[k].classList.toggle('poor',!lock&&tl.cost>money);tb[k].classList.toggle('lock',lock);tb[k].querySelector('.cost').textContent=lock?RANKS[tl.rank][1]:(tl.cost?'$'+tl.cost:'free')}
+  var tb=document.querySelectorAll('.tool');for(var k=0;k<tb.length;k++){var tl=TOOLS[k],lock=tl.rank!==undefined&&tl.rank>rankIdx;tb[k].classList.toggle('poor',!lock&&tl.cost>money);tb[k].classList.toggle('lock',lock);tb[k].querySelector('.cost').textContent=lock?RANKS[tl.rank][1]:(tl.label||(tl.cost?'$'+tl.cost:'free'))}
 }
 function setBar(id,v){var e=$(id);e.style.height=Math.abs(v)*50+'%';if(v>=0){e.style.bottom='50%';e.style.top='auto';e.style.opacity=1}else{e.style.top='50%';e.style.bottom='auto';e.style.opacity=.55}}
 var toastT=0;
@@ -1299,7 +1325,7 @@ function poor(){var n=Date.now();if(n-poorAt>1500){poorAt=n;note('Not enough fun
   var box=$('tools');
   TOOLS.forEach(function(tl){
     var b=document.createElement('button');b.className='tool'+(tl===curTool?' on':'');b.dataset.id=tl.id;b.type='button';
-    b.innerHTML='<i style="background:'+tl.color+'"></i><span class="nm">'+tl.name+'</span><span class="cost">'+(tl.cost?'$'+tl.cost:'free')+'</span>';
+    b.innerHTML='<i style="background:'+tl.color+'"></i><span class="nm">'+tl.name+'</span><span class="cost">'+(tl.label||(tl.cost?'$'+tl.cost:'free'))+'</span>';
     b.addEventListener('click',function(){setTool(tl.id)});box.appendChild(b);
   });
 })();
@@ -1338,10 +1364,16 @@ $('grow').addEventListener('click',growCity);
 $('reset').addEventListener('click',function(){openMenu()});
 
 /* ---------- placing ---------- */
-function canPlace(x,z){var c=grid[idx(x,z)];if(curTool.id==='orbit')return false;if(curTool.id==='bull')return c.t!==T.E;if(curTool.id==='bus')return c.t===T.ROAD&&!c.stop;return c.t===T.E}
+function canPlace(x,z){var c=grid[idx(x,z)];if(curTool.id==='orbit')return false;if(curTool.id==='bull')return c.t!==T.E;if(curTool.id==='bus')return c.t===T.ROAD&&!c.stop;if(curTool.id==='upg')return !!(UPG[c.t]&&!c.up&&c.m!==2&&!fires[idx(x,z)]);return c.t===T.E}
 function applyTool(x,z){
   if(!inb(x,z)||!canPlace(x,z))return false;
   var tl=curTool;
+  if(tl.id==='upg'){
+    var uc=grid[idx(x,z)],UU=UPG[uc.t];
+    if(money<UU.cost){poor();return false}
+    money-=UU.cost;uc.up=1;spawnObj(uc,x,z,0);note(UU.n+' built.');
+    stats=computeStats();syncCars();hud();return true;
+  }
   if(money<tl.cost){poor();return false}
   money-=tl.cost;
   if(tl.id==='bull'){clearTile(x,z)}
@@ -1384,6 +1416,7 @@ function info(t){
   var c=grid[idx(t.x,t.z)],n=NAMES[c.t];
   if(fires[idx(t.x,t.z)])return n+' is on fire';
   if(c.t===T.E)return 'Empty land';
+  if(UPG[c.t]&&!c.m){if(curTool.id==='upg')return c.up?UPG[c.t].n+' · already upgraded':'Upgrade to '+UPG[c.t].n+' · $'+UPG[c.t].cost.toLocaleString('en-US');if(c.up)return UPG[c.t].n+' · upgraded, wider reach and bigger returns'}
   if(c.m){var ai=c.m===1?idx(t.x,t.z):c.a,ac=grid[ai];return 'Mega '+(ac.t===T.RES?'residential complex · '+RES_POP[4]+' homes':ac.t===T.COM?'commercial complex · '+COM_JOBS[4]+' jobs':'industrial complex · '+IND_JOBS[4]+' jobs')}
   if(c.t===T.ROAD)return c.stop?'Road · bus stop (serves '+BUS_R+' tiles)':'Road';
   if(c.t===T.METRO)return 'Metro station · serves '+METRO_R+' tiles';
@@ -1417,7 +1450,7 @@ el.addEventListener('pointerdown',function(e){
 el.addEventListener('pointermove',function(e){
   if(pointers.has(e.pointerId))pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
   if(drag&&drag.mode==='pinch'&&pointers.size>=2){
-    var p=dist2();cam.dist=clamp(cam.dist*drag.d/p.d,16,80);panBy(p.mx-drag.mx,p.my-drag.my);drag.d=p.d;drag.mx=p.mx;drag.my=p.my;return;
+    var p=dist2();cam.dist=clamp(cam.dist*drag.d/p.d,16,115);panBy(p.mx-drag.mx,p.my-drag.my);drag.d=p.d;drag.mx=p.mx;drag.my=p.my;return;
   }
   if(drag&&drag.mode==='orbit'){cam.yaw-=(e.clientX-drag.x)*.006;cam.pitch=clamp(cam.pitch+(e.clientY-drag.y)*.005,.35,1.38);drag.x=e.clientX;drag.y=e.clientY;return}
   if(drag&&drag.mode==='pan'){panBy(e.clientX-drag.x,e.clientY-drag.y);drag.x=e.clientX;drag.y=e.clientY;return}
@@ -1437,7 +1470,7 @@ function endPtr(e){
 }
 el.addEventListener('pointerup',endPtr);el.addEventListener('pointercancel',endPtr);
 el.addEventListener('pointerleave',function(e){if(e.pointerType==='mouse'&&!drag){tip.hidden=true;marker.visible=false}});
-el.addEventListener('wheel',function(e){e.preventDefault();cam.dist=clamp(cam.dist*Math.exp(e.deltaY*.0012),16,80)},{passive:false});
+el.addEventListener('wheel',function(e){e.preventDefault();cam.dist=clamp(cam.dist*Math.exp(e.deltaY*.0012),16,115)},{passive:false});
 var keys={};
 window.addEventListener('keydown',function(e){
   if(!$('pol').hidden){if(e.key==='Escape')$('pol').hidden=true;return}
@@ -1453,22 +1486,31 @@ window.addEventListener('blur',function(){keys={}});
 /* ---------- persistence + seeding ---------- */
 function save(){
   try{
-    var t='',l='',m='',p='';
-    for(var i=0;i<grid.length;i++){var c=grid[i];t+=c.t.toString(36);l+=c.l;m+=c.m;p+=c.stop?1:0}
-    localStorage.setItem(SAVE,JSON.stringify({v:2,t:t,l:l,m:m,p:p,money:money,day:day,tax:tax,happy:happy,tod:tod,name:cityName,goal:goalIdx,diff:diff,pol:Object.keys(pols),
+    var t='',l='',m='',p='',u='';
+    for(var i=0;i<grid.length;i++){var c=grid[i];t+=c.t.toString(36);l+=c.l;m+=c.m;p+=c.stop?1:0;u+=c.up?1:0}
+    localStorage.setItem(SAVE,JSON.stringify({v:2,t:t,l:l,m:m,p:p,u:u,money:money,day:day,tax:tax,happy:happy,tod:tod,name:cityName,goal:goalIdx,diff:diff,pol:Object.keys(pols),
       scn:scn&&!scn.done?{id:scn.id,start:scn.start,startPop:scn.startPop,hold:scn.hold}:null}));
   }catch(_){}
 }
 function hasSave(){try{return !!localStorage.getItem(SAVE)}catch(_){return false}}
 var loadedV1=false;
+function padSave(d){
+  var off=(N-36)/2,n=N*N,t=new Array(n+1).join('0').split(''),l=t.slice(),m=t.slice(),p=t.slice(),u=t.slice();
+  for(var i=0;i<1296;i++){var j=(Math.floor(i/36)+off)*N+(i%36)+off;t[j]=d.t[i];l[j]=d.l[i];if(d.m)m[j]=d.m[i];if(d.p)p[j]=d.p[i];if(d.u)u[j]=d.u[i]}
+  var o={};for(var k in d)o[k]=d[k];o.t=t.join('');o.l=l.join('');o.m=m.join('');o.p=p.join('');o.u=u.join('');
+  // anchors of mega complexes keep their relative offsets, so m/l stay consistent
+  return o;
+}
 function load(){
   try{
     var raw=localStorage.getItem(SAVE);if(!raw)return false;
-    var d=JSON.parse(raw);if(!d||(d.v!==1&&d.v!==2)||d.t.length!==N*N||d.l.length!==N*N)return false;
-    var ms=d.m||'',ps=d.p||'',i,x,z;
+    var d=JSON.parse(raw);if(!d||(d.v!==1&&d.v!==2))return false;
+    if(d.t.length===1296&&N!==36)d=padSave(d);
+    if(d.t.length!==N*N||d.l.length!==N*N)return false;
+    var ms=d.m||'',ps=d.p||'',us=d.u||'',i,x,z;
     for(i=0;i<N*N;i++){
       var t=parseInt(d.t[i],36),l=+d.l[i];x=i%N;z=Math.floor(i/N);
-      if(t!==T.E){setTile(x,z,t,0,0);var c=grid[i];c.l=l;c.m=ms?+ms[i]:0;if(t===T.ROAD&&ps&&ps[i]==='1')addStop(x,z)}
+      if(t!==T.E){setTile(x,z,t,0,0);var c=grid[i];c.l=l;c.m=ms?+ms[i]:0;c.up=us&&us[i]==='1'?1:0;if(t===T.ROAD&&ps&&ps[i]==='1')addStop(x,z)}
     }
     for(i=0;i<N*N;i++){
       if(grid[i].m!==1)continue;x=i%N;z=Math.floor(i/N);
@@ -1476,7 +1518,7 @@ function load(){
       for(var dz=0;dz<2;dz++)for(var dx=0;dx<2;dx++){if(dx||dz){var g2=grid[idx(x+dx,z+dz)];g2.m=2;g2.a=i;g2.l=0}}
       grid[i].l=4;
     }
-    for(i=0;i<N*N;i++){var c2=grid[i];if(c2.l>0&&c2.m!==2)spawnObj(c2,i%N,Math.floor(i/N),Math.random()*1.2)}
+    for(i=0;i<N*N;i++){var c2=grid[i];if((c2.l>0||(c2.up&&UPG[c2.t]))&&c2.m!==2)spawnObj(c2,i%N,Math.floor(i/N),Math.random()*1.2)}
     money=d.money;day=d.day;tax=d.tax;happy=d.happy;tod=d.tod;cityName=d.name||cityName;goalIdx=d.goal||0;pols={};(d.pol||[]).forEach(function(k){pols[k]=true});
     diff=DIFFS[d.diff]?d.diff:'normal';
     scn=d.scn&&SCN[d.scn.id]?{id:d.scn.id,start:d.scn.start,startPop:d.scn.startPop,hold:d.scn.hold||0,done:false}:null;
@@ -1485,10 +1527,10 @@ function load(){
   }catch(_){return false}
 }
 function seed(){
-  var r=rng(11);
+  var r=rng(11),OFF=(N-36)/2;
   function R(x0,x1,z){for(var x=x0;x<=x1;x++)add(x,z,T.ROAD,0)}
   function V(x,z0,z1){for(var z=z0;z<=z1;z++)add(x,z,T.ROAD,0)}
-  function add(x,z,t,l){if(grid[idx(x,z)].t!==T.E)return;if(l&&r()<.22)l=0;setTile(x,z,t,0,r()*1.4);if(l){grid[idx(x,z)].l=l;spawnObj(grid[idx(x,z)],x,z,r()*1.4)}}
+  function add(x,z,t,l){x+=OFF;z+=OFF;if(grid[idx(x,z)].t!==T.E)return;if(l&&r()<.22)l=0;setTile(x,z,t,0,r()*1.4);if(l){grid[idx(x,z)].l=l;spawnObj(grid[idx(x,z)],x,z,r()*1.4)}}
   R(8,28,18);V(18,8,28);R(10,26,24);V(12,18,24);V(24,18,24);
   var x;
   for(x=9;x<=17;x++)add(x,17,T.RES,r()<.35?2:1);
@@ -1504,8 +1546,9 @@ var PRESETS={
  blank:{name:'Blank land',blurb:'Empty island, your rules. Roads first.',tag:'Start from zero',money:20000},
  hamlet:{name:'Hamlet',blurb:'A few streets and a dream. The classic start.',tag:'~120 residents',seed:true,money:20000},
  town:{name:'Town',blurb:'A main street, a grid of homes, a small industrial edge.',tag:'~1,100 residents',R:8,money:45000,day:240,fill:.95,lvl:.5,mega:0,stations:1,stops:2,metro:0,school:1,police:1,wind:1,lib:1},
- city:{name:'City',blurb:'Dense downtown, suburbs, a stadium and a fire network.',tag:'~3,200 residents',R:11,money:120000,day:600,fill:.98,lvl:.75,mega:.5,stations:3,stops:6,metro:0,stadium:1,school:2,police:2,hosp:1,plaza:2,wind:2,lib:1,solar:1,mall:1},
- metropolis:{name:'Metropolis',blurb:'Skyline, mega complexes, metro. Heavy on weak GPUs.',tag:'~6,500 residents',R:14,money:90000,day:1080,fill:1,lvl:.9,mega:.8,stations:5,stops:10,metro:3,stadium:1,spire:1,school:3,police:3,hosp:2,plaza:4,wind:3,lib:2,solar:2,mall:2,uni:1,museum:1,amuse:1,airport:1}
+ city:{name:'City',blurb:'Dense downtown, suburbs, a stadium and a fire network.',tag:'~3,200 residents',R:11,money:120000,day:600,fill:.98,lvl:.75,mega:.5,stations:3,stops:6,metro:0,stadium:1,school:2,police:2,hosp:1,plaza:2,wind:2,lib:1,solar:1,mall:1,airport:1,up:.15},
+ metropolis:{name:'Metropolis',blurb:'Skyline, mega complexes, metro. Heavy on weak GPUs.',tag:'~6,500 residents',R:14,money:90000,day:1080,fill:1,lvl:.9,mega:.8,stations:5,stops:10,metro:3,stadium:1,spire:1,school:3,police:3,hosp:2,plaza:4,wind:3,lib:2,solar:2,mall:2,uni:1,museum:1,amuse:1,airport:1,up:.4},
+ megacity:{name:'Megacity',blurb:'The whole island. Towers, metro, jets. Needs a strong GPU.',tag:'~15,000 residents · very heavy',R:22,money:260000,day:1800,fill:1,lvl:.9,mega:.8,stations:9,stops:20,metro:6,stadium:1,spire:1,school:6,police:5,hosp:4,plaza:8,wind:5,lib:3,solar:3,mall:4,uni:2,museum:2,amuse:2,airport:1,up:.5}
 };
 function genCity(P,r){
   var cx=HALF,cz=HALF,R=P.R,sp=5,road={},spec={},gap={},i,x,z;
@@ -1555,6 +1598,7 @@ function genCity(P,r){
     if(r()>P.lvl)l=Math.max(1,l-1);else if(r()<.25&&l<3)l++;
     put1(x,z,t,t===T.PARK?0:l);
   }
+  if(P.up){for(i=0;i<N*N;i++){var uc=grid[i];if(UPG[uc.t]&&!uc.m&&r()<P.up){uc.up=1;spawnObj(uc,i%N,Math.floor(i/N),r()*1.4)}}}
   stats=computeStats();
   var need=Math.ceil((stats.use*1.1+8-stats.supply)/PLANT_MW),spots=[];
   for(z=0;z<N;z++)for(x=0;x<N;x++){
@@ -1663,7 +1707,7 @@ function startGame(cfg){
   scatterDecor();stats=computeStats();stats=computeStats();
   if(scn)scn.startPop=stats.pop;
   skipGoals();
-  cam.tx=cam.tz=0;cam.dist=P.R>11?46:(P.R?40:34);
+  cam.tx=cam.tz=0;cam.dist=P.R>16?70:P.R>11?50:(P.R?40:34);
   $('cityName').textContent=cityName+' · '+DF().n;
   syncCars();syncPeds();hud();save();
   setSpeed(sd?0:1);
@@ -1734,10 +1778,10 @@ var cloudMat=new THREE.MeshBasicMaterial({colorWrite:false,depthWrite:false}),cl
   for(var i=0;i<9;i++){
     var g=new THREE.Group(),n=3+((r()*3)|0);
     for(var k=0;k<n;k++){var m=new THREE.Mesh(new THREE.IcosahedronGeometry(2+r()*1.8,0),cloudMat);m.position.set(k*3-n*1.4,(r()-.5)*.6,(r()-.5)*2.4);m.scale.y=.45;m.castShadow=true;g.add(m)}
-    g.position.set((r()-.5)*110,16+r()*5,(r()-.5)*90);g.userData.v=.5+r()*.5;scene.add(g);clouds.push(g);
+    g.position.set((r()-.5)*160,16+r()*5,(r()-.5)*140);g.userData.v=.5+r()*.5;scene.add(g);clouds.push(g);
   }
 })();
-function updateClouds(dt){for(var i=0;i<clouds.length;i++){var g=clouds[i];g.position.x+=dt*g.userData.v;if(g.position.x>60)g.position.x=-60}}
+function updateClouds(dt){for(var i=0;i<clouds.length;i++){var g=clouds[i];g.position.x+=dt*g.userData.v;if(g.position.x>85)g.position.x=-85}}
 var skyNightTop=new THREE.Color('#040916'),skyDayTop=new THREE.Color('#3f86d6'),skyDuskTop=new THREE.Color('#6a5a9a'),skyTop=new THREE.Color(),skyBot=new THREE.Color(),whiteC=new THREE.Color('#ffffff'),negSun=new THREE.Vector3();
 
 /* ---------- day / night ---------- */
@@ -1779,7 +1823,7 @@ function frame(now){
   var kx=(keys['d']||keys['arrowright']?1:0)-(keys['a']||keys['arrowleft']?1:0),kz=(keys['s']||keys['arrowdown']?1:0)-(keys['w']||keys['arrowup']?1:0);
   if(kx||kz){var sp=cam.dist*.9*dt,rx=Math.cos(cam.yaw),rz=-Math.sin(cam.yaw),fx=-Math.sin(cam.yaw),fz=-Math.cos(cam.yaw);cam.tx=clamp(cam.tx+(rx*kx-fx*kz)*sp,-HALF,HALF);cam.tz=clamp(cam.tz+(rz*kx-fz*kz)*sp,-HALF,HALF)}
   if(keys['q'])cam.yaw+=dt*1.4;if(keys['e'])cam.yaw-=dt*1.4;
-  if(keys['=']||keys['+'])cam.dist=clamp(cam.dist*(1-dt*1.2),16,80);if(keys['-'])cam.dist=clamp(cam.dist*(1+dt*1.2),16,80);
+  if(keys['=']||keys['+'])cam.dist=clamp(cam.dist*(1-dt*1.2),16,115);if(keys['-'])cam.dist=clamp(cam.dist*(1+dt*1.2),16,115);
   if(menuOpen)cam.yaw+=dt*.07;
   applyCam();updateSky();
   /* sim */
