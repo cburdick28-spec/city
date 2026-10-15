@@ -29,7 +29,8 @@ Or from the command line: `npx vercel --prod`.
 | Pan | Shift + right-drag, WASD or arrow keys |
 | Zoom | Mouse wheel, `+` / `-`, or pinch |
 | Rotate | `Q` / `E` |
-| Tools | `1`–`8` |
+| Tools | `1`–`8`, `F` fire station, `G` stadium, `H` spire |
+| Effects on/off | `X` |
 | Pause | Space |
 
 On touch screens, pick the Look around tool to orbit, and use two fingers to pan and zoom.
@@ -40,4 +41,11 @@ On touch screens, pick the Look around tool to orbit, and use two fingers to pan
 - Lots upgrade through three levels as demand rises. Demand depends on residents, jobs, tax rate and mood.
 - Mood rises with parks and falls with pollution, high taxes and blackouts.
 - Each month the city collects taxes and pays upkeep for roads, plants and parks.
+- Goals pay out cash. Finish the one shown in the side panel to get the next.
+- Landmarks unlock by rank: the Stadium at Large town and the Spire at City. They lift mood and earn monthly income.
+- Fires start at random once the city is a few weeks old. A fire station puts out any fire within 6 tiles. Without one, fires spread and burn lots down, so build a station or bulldoze a firebreak.
 - The game autosaves to your browser's local storage.
+
+## Graphics
+
+Bloom, a soft miniature-style blur at the screen edges and a vignette are on by default. If the frame rate drops, the game turns them off by itself. Press `X` to toggle them. The effects use three.js post-processing scripts self-hosted in `vendor/fx/`.
