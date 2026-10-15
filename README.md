@@ -47,6 +47,7 @@ On touch screens, pick the Look around tool to orbit, and use two fingers to pan
 - Transit: bus stops go on road tiles and cover 4 tiles, metro stations (Large town) cover 7. Residents in range raise mood, pay fares and cut car traffic. Buses run the streets.
 - Services: School, Police station, Wind farm (Village), Hospital and Plaza (Town). Each lifts mood for homes in range (school 6 tiles, police 6, hospital 7, plaza 3). Wind farms add 30 MW with no pollution.
 - Bigger landmarks: Library (Village), Solar farm (+55 MW, Town), Shopping mall and Museum (Large town), Amusement park and University (City), Airport (Metropolis). Landmarks earn monthly income, add jobs or lift mood; the Tourism board policy doubles the tourist ones.
+- Night life: the mall sign, amusement park and airport runway lights glow after dark, and an airport sends jets landing and taking off.
 - Policies (the **Policies** button): Clean air act, Green belt, Fire code, Free transit, Business tax break, Night economy, Tourism board, High-rise incentives and Austerity. Each one trades money, taxes or mood for something else, and the higher ones unlock with rank.
 - Past about 800 residents the city also pays for services, so very big cities are not free money. Watch the tax rate.
 - Fires start at random once the city is a few weeks old. A fire station puts out any fire within 6 tiles. Without one, fires spread and burn lots down, so build a station or bulldoze a firebreak.
