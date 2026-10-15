@@ -129,7 +129,7 @@ dt{color:var(--mute)} dd{margin:0;font-variant-numeric:tabular-nums;text-align:r
 .card span{color:var(--mute);font-size:12px;line-height:1.35;flex:1}
 .card em{font-style:normal;font-size:11px;color:var(--amber);letter-spacing:.05em}
 .mrow{margin-bottom:12px}
-#mdiff{grid-template-columns:repeat(4,1fr)}
+#mdiff{grid-template-columns:repeat(5,1fr)}
 #mdiffNote{color:var(--mute);font-size:12px;margin-top:6px;min-height:16px}
 .actions{display:flex;gap:8px;justify-content:flex-end;margin:6px 0 0}
 .actions button{padding:10px 22px;border:1px solid var(--edge);background:transparent;border-radius:7px;font-weight:600}
@@ -217,7 +217,7 @@ dt{color:var(--mute)} dd{margin:0;font-variant-numeric:tabular-nums;text-align:r
       <div class="cards" id="mcards"></div>
       <div class="mrow">
         <h3>Difficulty</h3>
-        <div class="seg" id="mdiff"><button data-d="easy">Easy</button><button data-d="normal" class="on">Normal</button><button data-d="hard">Hard</button><button data-d="brutal">Brutal</button></div>
+        <div class="seg" id="mdiff"><button data-d="easy">Easy</button><button data-d="normal" class="on">Normal</button><button data-d="hard">Hard</button><button data-d="brutal">Brutal</button><button data-d="creative">Creative</button></div>
         <div id="mdiffNote"></div>
       </div>
       <div class="actions"><button id="mcont" hidden>Continue city</button><button id="mgo" class="primary">Start</button></div>
@@ -324,7 +324,8 @@ var DIFFS={
  easy:{n:'Easy',money:1.6,inc:1.25,exp:.8,fire:.5,mood:6,gr:1.25,note:'More cash, cheaper upkeep, rare fires, happier citizens.'},
  normal:{n:'Normal',money:1,inc:1,exp:1,fire:1,mood:0,gr:1,note:'The intended balance.'},
  hard:{n:'Hard',money:.6,inc:.85,exp:1.2,fire:1.6,mood:-5,gr:.8,note:'Tighter budget, more fires, grumpier citizens.'},
- brutal:{n:'Brutal',money:.35,inc:.7,exp:1.45,fire:2.4,mood:-10,gr:.6,note:'Almost no cash, heavy upkeep, constant fires.'}
+ brutal:{n:'Brutal',money:.35,inc:.7,exp:1.45,fire:2.4,mood:-10,gr:.6,note:'Almost no cash, heavy upkeep, constant fires.'},
+ creative:{n:'Creative',money:1,inc:1,exp:0,fire:0,mood:0,gr:0,creative:1,note:'Infinite money, no fires, no bills, no blackouts, every building unlocked. Just build.'}
 };
 function DF(){return DIFFS[diff]||DIFFS.normal}
 var pols={};
@@ -1239,13 +1240,13 @@ function computeStats(){
     for(var q=0;q<tr.length;q++){if(Math.hypot(x-tr[q][0],z-tr[q][1])<=tr[q][2]){trPop+=RES_POP[c.l];break}}
     var seen={};for(q=0;q<sv.length;q++){if(!seen[sv[q][3]]&&Math.hypot(x-sv[q][0],z-sv[q][1])<=sv[q][2]){seen[sv[q][3]]=1;svPop[sv[q][3]]=(svPop[sv[q][3]]||0)+RES_POP[c.l]}}
   }
-  var pf=(resCap?polluted/resCap:0)*(pol('cleanair')?.4:1),svf={},svMood=0;
+  var pf=(resCap?polluted/resCap:0)*(pol('cleanair')?.4:1)*(DF().creative?0:1),svf={},svMood=0;
   for(var sk in SERV){svf[sk]=resCap?(svPop[sk]||0)/resCap:0;svMood+=SERV[sk].mood*svf[sk]}
   var s={pop:0,ups:ups,jobs:com+ind,com:com,ind:ind,use:use,supply:plants*PLANT_MW+winds*30+mw,bx:bx,ap:ap,airports:bn[22]||0,winds:winds,schools:svn[11]||0,hosps:svn[12]||0,police:svn[13]||0,plazas:svn[15]||0,svf:svf,roads:roads,plants:plants,parks:parks,pf:pf,resCap:resCap,stations:stations,stadiums:stadiums,spires:spires,metros:metros,stops:stops,megas:megas,trPop:trPop,transit:resCap?trPop/resCap:0,st:st};
-  var brown=use>s.supply;
+  var brown=use>s.supply&&!DF().creative;
   var parkScore=18*Math.min(1,parks*60/(resCap+60))*(pol('greenbelt')?1.6:1);
   var target=64+parkScore-30*pf-(tax-9)*2.5-(brown?18:0)-((resCap>s.jobs*1.5+10)?8:0)+Math.min(14,stadiums*7+spires*5)-Math.min(10,Object.keys(fires).length*4)+10*s.transit+svMood+(pol('freetransit')?4*s.transit:0)-(pol('nightlife')?2:0)-(pol('highrise')?2:0)-(pol('austerity')?4:0)+DF().mood;
-  happy+=(clamp(target,5,98)-happy)*.2;
+  happy+=((DF().creative?98:clamp(target,5,98))-happy)*.2;
   s.pop=Math.round(resCap*(.55+.45*happy/100));
   var pop=s.pop,jobs=s.jobs,adj=-(tax-9)*.03+(happy-60)/200,tb=pol('taxbreak')?.12:0;
   s.dem={
@@ -1263,7 +1264,7 @@ function simDay(){
     var c=grid[idx(x,z)];
     if(c.t<T.RES||c.t>T.IND||c.m===2)continue;
     var d=c.t===T.RES?s.dem.r:c.t===T.COM?s.dem.c:s.dem.i;
-    if(c.l>0&&(d<-.5||happy<22)&&Math.random()<.02){
+    if(c.l>0&&!DF().creative&&(d<-.5||happy<22)&&Math.random()<.02){
       if(c.m===1){breakMega(idx(x,z),-1,3)}else{c.l--;spawnObj(c,x,z,0)}
       changed=true;continue;
     }
@@ -1295,7 +1296,8 @@ function monthly(){
 var lastHud='';
 function hud(){
   var s=stats;
-  $('money').textContent='$'+Math.round(money).toLocaleString('en-US');$('money').classList.toggle('neg',money<0);
+  if(DF().creative)money=1e9;
+  $('money').textContent=DF().creative?'∞':'$'+Math.round(money).toLocaleString('en-US');$('money').classList.toggle('neg',money<0);
   $('pop').textContent=s.pop.toLocaleString('en-US');
   $('mood').textContent=Math.round(happy)+'%';$('mood').classList.toggle('neg',happy<35);
   $('power').textContent=s.use+'/'+s.supply;$('power').classList.toggle('neg',s.use>s.supply);
@@ -1304,12 +1306,12 @@ function hud(){
   if(budget.has){$('bInc').textContent='+$'+budget.inc.toLocaleString('en-US');$('bExp').textContent='-$'+budget.exp.toLocaleString('en-US');var n=budget.inc-budget.exp;$('bNet').textContent=(n>=0?'+':'-')+'$'+Math.abs(n).toLocaleString('en-US');$('bNet').className=n<0?'neg':''}
   var ri=0;for(var i=0;i<RANKS.length;i++){if(s.pop>=RANKS[i][0])ri=i}
   if(ri>rankIdx&&lastHud!==''){note('Reached '+RANKS[ri][1]+' status')}
-  rankIdx=ri;lastHud='x';
+  rankIdx=DF().creative?RANKS.length-1:ri;lastHud='x';
   $('rank').textContent=RANKS[ri][1];
   if(ri<RANKS.length-1){var a=RANKS[ri][0],b=RANKS[ri+1][0];$('rankBar').style.width=clamp((s.pop-a)/(b-a),0,1)*100+'%';$('rankNext').textContent=(b-s.pop)+' more residents for '+RANKS[ri+1][1]}
   else{$('rankBar').style.width='100%';$('rankNext').textContent='Top rank reached'}
   var G=GOALS[goalIdx];
-  if(G){var gc=G.cur(s)||0;$('goalText').textContent=G.t;$('goalReward').textContent='+$'+Math.round(G.r*DF().gr).toLocaleString('en-US');$('goalBar').style.width=clamp(gc/G.max,0,1)*100+'%';$('goalNote').textContent=Math.min(gc,G.max).toLocaleString('en-US')+' / '+G.max.toLocaleString('en-US')}
+  if(G){var gc=G.cur(s)||0;$('goalText').textContent=G.t;$('goalReward').textContent=DF().creative?'':'+$'+Math.round(G.r*DF().gr).toLocaleString('en-US');$('goalBar').style.width=clamp(gc/G.max,0,1)*100+'%';$('goalNote').textContent=Math.min(gc,G.max).toLocaleString('en-US')+' / '+G.max.toLocaleString('en-US')}
   else{$('goalText').textContent='Every goal complete';$('goalReward').textContent='';$('goalBar').style.width='100%';$('goalNote').textContent='Build whatever you like.'}
   $('goalBox').hidden=!!scn;renderScn();$('polBtn').textContent='Policies'+(Object.keys(pols).length?' ('+Object.keys(pols).length+' on)':'');
   var tb=document.querySelectorAll('.tool');for(var k=0;k<tb.length;k++){var tl=TOOLS[k],lock=tl.rank!==undefined&&tl.rank>rankIdx;tb[k].classList.toggle('poor',!lock&&tl.cost>money);tb[k].classList.toggle('lock',lock);tb[k].querySelector('.cost').textContent=lock?RANKS[tl.rank][1]:(tl.label||(tl.cost?'$'+tl.cost:'free'))}
@@ -1695,7 +1697,7 @@ function skipGoals(){while(GOALS[goalIdx]&&(GOALS[goalIdx].cur(stats)||0)>=GOALS
 function wipe(){wiping=true;for(var z=0;z<N;z++)for(var x=0;x<N;x++)clearTile(x,z);wiping=false}
 function startGame(cfg){
   var sd=cfg.scn?SCN[cfg.scn]:null,P=PRESETS[sd?sd.preset:(cfg.preset||'hamlet')];
-  diff=DIFFS[cfg.diff]?cfg.diff:'normal';scn=null;
+  diff=DIFFS[cfg.diff]?cfg.diff:'normal';if(cfg.scn&&diff==='creative')diff='normal';scn=null;
   wipe();
   var r=rng((Math.random()*1e9)|0);
   tax=9;happy=P.R?66:62;budget={inc:0,exp:0,has:false};day=P.day||0;
