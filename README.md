@@ -69,6 +69,7 @@ Bloom, a soft miniature-style blur at the screen edges and a vignette are on by 
 The start menu (also behind the **New game / menu** button) has two tabs:
 
 - **Sandbox**: Blank land, Hamlet, Town, City, Metropolis and Megacity (very heavy). The Town, City and Metropolis presets are generated fresh each time, so no two are the same.
+- **City blocks**: five road-only starts with the streets already laid and no buildings: Grid blocks, Rings and spokes, Superblocks, Ring road, and Island link (a causeway to the second island). You zone, power and build everything.
 - **Scenarios**: Blackout (one power plant left), Firestorm (fires burning, no fire station), Debt Spiral (deep in debt with heavy upkeep) and Ghost Town (the town is half empty and unhappy). Each has objectives, a time limit and a win/lose screen. They start paused so you can plan.
 
 Creative mode (pick it under Difficulty) gives infinite money, zero upkeep, no fires, no blackouts, max mood and every building and policy unlocked from the start. It's sandbox only; scenarios fall back to Normal.

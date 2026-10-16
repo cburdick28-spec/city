@@ -218,7 +218,7 @@ body.photo #photoHint{display:block!important}
         <svg width="40" height="40" viewBox="0 0 30 30" aria-hidden="true"><rect x="2" y="14" width="7" height="14" fill="#4ca6ee"/><rect x="11" y="5" width="8" height="23" fill="#ffb347"/><rect x="21" y="11" width="7" height="17" fill="#62c780"/></svg>
         <div><b>Blocktown</b><small>Pick a starting point</small></div>
       </div>
-      <div class="tabs" id="mtabs"><button data-tab="sandbox" class="on">Sandbox</button><button data-tab="scn">Scenarios</button></div>
+      <div class="tabs" id="mtabs"><button data-tab="sandbox" class="on">Sandbox</button><button data-tab="blocks">City blocks</button><button data-tab="scn">Scenarios</button></div>
       <div class="cards" id="mcards"></div>
       <div class="mrow">
         <h3>Difficulty</h3>
@@ -1676,6 +1676,40 @@ var PRESETS={
  metropolis:{name:'Metropolis',blurb:'Skyline, mega complexes, metro. Heavy on weak GPUs.',tag:'~6,500 residents',R:14,money:90000,day:1080,fill:1,lvl:.9,mega:.8,stations:5,stops:10,metro:3,stadium:1,spire:1,school:3,police:3,hosp:2,plaza:4,wind:3,lib:2,solar:2,mall:2,uni:1,museum:1,amuse:1,airport:1,zoo:1,cathedral:1,lighthouse:1,up:.4},
  megacity:{name:'Megacity',blurb:'The whole island. Towers, metro, jets. Needs a strong GPU.',tag:'~15,000 residents · very heavy',R:22,money:260000,day:1800,fill:1,lvl:.9,mega:.8,stations:9,stops:20,metro:6,stadium:1,spire:1,school:6,police:5,hosp:4,plaza:8,wind:5,lib:3,solar:3,mall:4,uni:2,museum:2,amuse:2,airport:1,zoo:2,cathedral:2,lighthouse:2,up:.5}
 };
+var BLOCKS={
+ grid:{name:'Grid blocks',blurb:'The classic 5-tile street grid, every road already laid. Zone it your way.',tag:'Roads only · $30,000',layout:'grid',money:30000,cam:44},
+ rings:{name:'Rings and spokes',blurb:'Concentric ring roads cut by four avenues and four diagonals.',tag:'Roads only · $30,000',layout:'rings',money:30000,cam:54},
+ super:{name:'Superblocks',blurb:'Wide 9-tile blocks. Plenty of room for airports, stadiums and campuses.',tag:'Roads only · $30,000',layout:'super',money:30000,cam:56},
+ ringroad:{name:'Ring road',blurb:'One big loop, a cross street and an inner circle. Fill the middle however you like.',tag:'Roads only · $30,000',layout:'ringroad',money:30000,cam:46},
+ causeway:{name:'Island link',blurb:'A small grid, a causeway over the moat and a loop road on the second island.',tag:'Roads only · $30,000',layout:'causeway',money:30000,cam:48}
+};
+function genBlocks(P,r){
+  var cx=HALF,cz=HALF,h=P.layout,d,k,a,sx,sz;
+  function rd(x,z,wat){if(!inb(x,z))return;var c=grid[idx(x,z)];if(c.t!==T.E)return;if(c.w&&!wat)return;setTile(x,z,T.ROAD,0,r()*1.2)}
+  function sqRing(k2){for(var q=-k2;q<=k2;q++){rd(cx+q,cz-k2);rd(cx+q,cz+k2);rd(cx-k2,cz+q);rd(cx+k2,cz+q)}}
+  function lattice(half,sp){for(var a2=-half;a2<=half;a2+=sp)for(var q=-half;q<=half;q++){rd(cx+a2,cz+q);rd(cx+q,cz+a2)}}
+  function axes(half,wat){for(var q=-half;q<=half;q++){rd(cx+q,cz,wat);rd(cx,cz+q,wat)}}
+  if(h==='grid')lattice(15,5);
+  else if(h==='super')lattice(18,9);
+  else if(h==='rings'){
+    sqRing(6);sqRing(12);sqRing(18);axes(18,true);
+    for(d=1;d<=18;d++)for(sx=-1;sx<=1;sx+=2)for(sz=-1;sz<=1;sz+=2){rd(cx+sx*d,cz+sz*d);rd(cx+sx*d,cz+sz*(d-1))}
+  }else if(h==='ringroad'){sqRing(15);sqRing(5);axes(15,false)}
+  else if(h==='causeway'){
+    lattice(10,5);
+    for(var x=cx+10;x<=51;x++)rd(x,cz,true);
+    var ix=47,iz=28;
+    for(k=-4;k<=4;k++){rd(ix+k,iz-4);rd(ix+k,iz+4);rd(ix-4,iz+k);rd(ix+4,iz+k);rd(ix+k,iz);rd(ix,iz+k)}
+  }
+  /* keep only the road network connected to the centre, so no stray pieces float on the far side of the moat */
+  var start=-1;for(var rr=0;rr<=20&&start<0;rr++)for(var q=-rr;q<=rr&&start<0;q++){var tx2=cx+q,tz2=cz+(rr%2?rr:-rr);if(inb(tx2,tz2)&&grid[idx(tx2,tz2)].t===T.ROAD)start=idx(tx2,tz2)}
+  if(start<0)for(var ii=0;ii<N*N&&start<0;ii++)if(grid[ii].t===T.ROAD)start=ii;
+  if(start>=0){
+    var keep={},stack=[start];keep[start]=1;
+    while(stack.length){var j=stack.pop(),jx=j%N,jz=Math.floor(j/N);DIRS.forEach(function(dv){var ax=jx+dv[0],az=jz+dv[1];if(inb(ax,az)){var kk=idx(ax,az);if(!keep[kk]&&grid[kk].t===T.ROAD){keep[kk]=1;stack.push(kk)}}})}
+    for(var ci=0;ci<N*N;ci++){if(grid[ci].t===T.ROAD&&!keep[ci])clearTile(ci%N,Math.floor(ci/N))}
+  }
+}
 function genCity(P,r){
   var cx=HALF,cz=HALF,R=P.R,sp=5,road={},spec={},gap={},i,x,z;
   function mod(a){return ((a%sp)+sp)%sp}
@@ -1832,30 +1866,30 @@ function skipGoals(){while(GOALS[goalIdx]&&(GOALS[goalIdx].cur(stats)||0)>=GOALS
 /* ---------- new game flow ---------- */
 function wipe(){wiping=true;for(var z=0;z<N;z++)for(var x=0;x<N;x++)clearTile(x,z);wiping=false}
 function startGame(cfg){
-  var sd=cfg.scn?SCN[cfg.scn]:null,P=PRESETS[sd?sd.preset:(cfg.preset||'hamlet')];
+  var sd=cfg.scn?SCN[cfg.scn]:null,P=PRESETS[sd?sd.preset:(cfg.preset||'hamlet')]||BLOCKS[cfg.preset]||PRESETS.hamlet;
   diff=DIFFS[cfg.diff]?cfg.diff:'normal';if(cfg.scn&&diff==='creative')diff='normal';scn=null;
   wipe();
   var r=rng((Math.random()*1e9)|0);
   tax=9;happy=P.R?66:62;budget={inc:0,exp:0,has:false};day=P.day||0;
   money=Math.round(P.money*DF().money);goalIdx=0;rankIdx=0;lastHud='';pols={};
   cityName=CITY_NAMES[(Math.random()*CITY_NAMES.length)|0];
-  if(P.seed)seed();else if(P.R)genCity(P,r);
+  if(P.seed)seed();else if(P.layout)genBlocks(P,r);else if(P.R)genCity(P,r);
   if(sd){scn={id:cfg.scn,start:day,startPop:0,hold:0,done:false};money=sd.money;sd.setup()}
   $('tax').value=tax;$('taxO').textContent=tax+'%';
   scatterDecor();stats=computeStats();stats=computeStats();
   if(scn)scn.startPop=stats.pop;
   skipGoals();
-  cam.tx=cam.tz=0;cam.dist=P.R>16?70:P.R>11?50:(P.R?40:34);
+  cam.tx=cam.tz=0;cam.dist=P.cam||(P.R>16?70:P.R>11?50:(P.R?40:34));
   $('cityName').textContent=cityName+' · '+DF().n;
   syncCars();syncPeds();hud();save();
   setSpeed(sd?0:1);
-  note(sd?'Paused. Place what you need, then press Space to start the clock.':(P.R?'Welcome to '+cityName+'. Mind the budget.':'A fresh start. Roads first, then zones within two tiles.'));
+  note(sd?'Paused. Place what you need, then press Space to start the clock.':(P.layout?'The streets are laid. Zone the blocks, then add power and a fire station.':P.R?'Welcome to '+cityName+'. Mind the budget.':'A fresh start. Roads first, then zones within two tiles.'));
 }
 
 /* ---------- start menu ---------- */
-var menuSel={tab:'sandbox',preset:'hamlet',scn:'blackout',diff:'normal'};
+var menuSel={tab:'sandbox',preset:'hamlet',block:'grid',scn:'blackout',diff:'normal'};
 function renderMenu(){
-  var h='',src=menuSel.tab==='sandbox'?PRESETS:SCN,cur=menuSel.tab==='sandbox'?menuSel.preset:menuSel.scn;
+  var h='',src=menuSel.tab==='sandbox'?PRESETS:menuSel.tab==='blocks'?BLOCKS:SCN,cur=menuSel.tab==='sandbox'?menuSel.preset:menuSel.tab==='blocks'?menuSel.block:menuSel.scn;
   Object.keys(src).forEach(function(k){var p=src[k];h+='<button class="card'+(cur===k?' on':'')+'" data-k="'+k+'" type="button"><b>'+p.name+'</b><span>'+p.blurb+'</span><em>'+p.tag+'</em></button>'});
   $('mcards').innerHTML=h;
   var tb=$('mtabs').children;for(var i=0;i<tb.length;i++)tb[i].classList.toggle('on',tb[i].dataset.tab===menuSel.tab);
@@ -1865,11 +1899,11 @@ function renderMenu(){
 function openMenu(){menuOpen=true;menuSel.diff=diff;$('menu').hidden=false;$('mcont').hidden=!hasSave();renderMenu()}
 function closeMenu(){menuOpen=false;$('menu').hidden=true}
 $('mtabs').addEventListener('click',function(e){var b=e.target.closest('button');if(!b)return;menuSel.tab=b.dataset.tab;renderMenu()});
-$('mcards').addEventListener('click',function(e){var b=e.target.closest('.card');if(!b)return;menuSel[menuSel.tab==='sandbox'?'preset':'scn']=b.dataset.k;renderMenu()});
+$('mcards').addEventListener('click',function(e){var b=e.target.closest('.card');if(!b)return;menuSel[menuSel.tab==='sandbox'?'preset':menuSel.tab==='blocks'?'block':'scn']=b.dataset.k;renderMenu()});
 $('mdiff').addEventListener('click',function(e){var b=e.target.closest('button');if(!b)return;menuSel.diff=b.dataset.d;renderMenu()});
 $('mgo').addEventListener('click',function(){
   closeMenu();
-  startGame(menuSel.tab==='sandbox'?{preset:menuSel.preset,diff:menuSel.diff}:{scn:menuSel.scn,diff:menuSel.diff});
+  startGame(menuSel.tab==='sandbox'?{preset:menuSel.preset,diff:menuSel.diff}:menuSel.tab==='blocks'?{preset:menuSel.block,diff:menuSel.diff}:{scn:menuSel.scn,diff:menuSel.diff});
 });
 function renderPol(){
   var h='';
