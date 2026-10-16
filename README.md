@@ -52,6 +52,7 @@ On touch screens, pick the Look around tool to orbit, and use two fingers to pan
 - More landmarks: Lighthouse (Town, rotating beam at night), Zoo and Cathedral (Large town). They lift mood and earn tourist income, and all three can be upgraded.
 - Weather: clear, rain and snow roll in on their own (press `[` to cycle). Rain dims the sky and makes fires 65% less likely.
 - Photo mode (`P` or the panel button): hides the UI, eases to golden hour and slowly orbits. `P` or Esc to leave.
+- Footprints: big landmarks take more land. Airport 4x4; Stadium, University, Amusement park and Zoo 3x3; Mall, Hospital, Museum, Cathedral and Solar farm 2x2. The hover box shows the footprint, bulldozing any tile removes the whole building, and bigger buildings reach a bit further.
 - Night life: the mall sign, amusement park and airport runway lights glow after dark, and an airport sends jets landing and taking off.
 - Policies (the **Policies** button): Clean air act, Green belt, Fire code, Free transit, Business tax break, Night economy, Tourism board, High-rise incentives and Austerity. Each one trades money, taxes or mood for something else, and the higher ones unlock with rank.
 - Past about 800 residents the city also pays for services, so very big cities are not free money. Watch the tax rate.
