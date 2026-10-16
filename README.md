@@ -29,7 +29,7 @@ Or from the command line: `npx vercel --prod`.
 | Pan | Shift + right-drag, WASD or arrow keys |
 | Zoom | Mouse wheel, `+` / `-`, or pinch |
 | Rotate | `Q` / `E` |
-| Tools | `1`–`8`, `F` fire station, `B` bus stop, `G` stadium, `H` spire, `M` metro station, `J` school, `K` police, `L` hospital, `N` wind farm, `O` plaza, `I` library, `V` solar, `C` mall, `Y` museum, `T` amusement park, `U` university, `Z` airport, `R` upgrade |
+| Tools | `1`–`8`, `F` fire station, `B` bus stop, `G` stadium, `H` spire, `M` metro station, `J` school, `K` police, `L` hospital, `N` wind farm, `O` plaza, `I` library, `V` solar, `C` mall, `Y` museum, `T` amusement park, `U` university, `Z` airport, `R` upgrade, `9` zoo, `0` cathedral, `,` lighthouse, `P` photo mode, `[` cycle weather |
 | Effects on/off | `X` |
 | Pause | Space |
 
@@ -49,6 +49,9 @@ On touch screens, pick the Look around tool to orbit, and use two fingers to pan
 - Bigger landmarks: Library (Village), Solar farm (+55 MW, Town), Shopping mall and Museum (Large town), Amusement park and University (City), Airport (City). Landmarks earn monthly income, add jobs or lift mood; the Tourism board policy doubles the tourist ones.
 - Upgrades: pick the Upgrade tool (`R`) and click a service or landmark to level it up for a fee. School becomes a Campus, Hospital a Medical center, Fire station a Fire HQ (9 tile reach), Airport an International airport, and so on. Upgraded buildings get a gold ring and star, reach 50% further, and earn more (or add power and jobs) for extra upkeep.
 - Bigger map: the island is now 56 x 56 tiles. Older 36 x 36 saves are centered in it automatically.
+- More landmarks: Lighthouse (Town, rotating beam at night), Zoo and Cathedral (Large town). They lift mood and earn tourist income, and all three can be upgraded.
+- Weather: clear, rain and snow roll in on their own (press `[` to cycle). Rain dims the sky and makes fires 65% less likely.
+- Photo mode (`P` or the panel button): hides the UI, eases to golden hour and slowly orbits. `P` or Esc to leave.
 - Night life: the mall sign, amusement park and airport runway lights glow after dark, and an airport sends jets landing and taking off.
 - Policies (the **Policies** button): Clean air act, Green belt, Fire code, Free transit, Business tax break, Night economy, Tourism board, High-rise incentives and Austerity. Each one trades money, taxes or mood for something else, and the higher ones unlock with rank.
 - Past about 800 residents the city also pays for services, so very big cities are not free money. Watch the tax rate.
