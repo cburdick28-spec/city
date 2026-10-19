@@ -29,7 +29,7 @@ Or from the command line: `npx vercel --prod`.
 | Pan | Shift + right-drag, WASD or arrow keys |
 | Zoom | Mouse wheel, `+` / `-`, or pinch |
 | Rotate | `Q` / `E` |
-| Tools | `1`–`8`, `F` fire station, `B` bus stop, `G` stadium, `H` spire, `M` metro station, `J` school, `K` police, `L` hospital, `N` wind farm, `O` plaza, `I` library, `V` solar, `C` mall, `Y` museum, `T` amusement park, `U` university, `Z` airport, `R` upgrade, `9` zoo, `0` cathedral, `,` lighthouse, `.` harbor, `;` fountain, `'` clock tower, `P` photo mode, `[` cycle weather |
+| Tools | `1`–`8`, `F` fire station, `B` bus stop, `G` stadium, `H` spire, `M` metro station, `J` school, `K` police, `L` hospital, `N` wind farm, `O` plaza, `I` library, `V` solar, `C` mall, `Y` museum, `T` amusement park, `U` university, `Z` airport, `R` upgrade, `X` merge, `]` stretch, `9` zoo, `0` cathedral, `,` lighthouse, `.` harbor, `;` fountain, `'` clock tower, `P` photo mode, `[` cycle weather |
 | Effects on/off | `X` |
 | Pause | Space |
 
@@ -51,6 +51,7 @@ On touch screens, pick the Look around tool to orbit, and use two fingers to pan
 - Bigger map: the map is now 88 x 88 tiles with two islands. Older 36 and 56 tile saves are centered in it automatically.
 - More landmarks: Lighthouse (Town, rotating beam at night), Zoo and Cathedral (Large town). They lift mood and earn tourist income, and all three can be upgraded.
 - Harbor (City rank, 3x3): must touch water, turns to face it, with a crane, containers and a moored ship; upgrades to a Container port. Fountain (Hamlet+) and Clock tower (Town) are cheap 1x1 mood boosters, each upgradeable.
+- **Merge** (Town): click any zoned building and it fuses with the neighbouring lots of the same zone into one big tower, up to 5x5. Merged towers are scaled up, house or employ about 1.15x what the separate lots would, and bulldozing one splits it back into lots. **Stretch** (Town): click any landmark or service building to grow it one tile at a time, up to 6x6, into whichever side has room. Bigger means a wider reach and bigger returns, and upgrades carry over.
 - Disasters: earthquakes (with aftershock fires), coastal floods and meteor strikes hit now and then once a city is a few months old (not in Creative). Zoned lots drop levels and regrow on their own; landmarks and plants turn to rubble you bulldoze and rebuild. A relief fund pays part of the damage, fire stations clear rubble faster, and the Seismic code and Flood levees policies cut the damage. The Disaster drill buttons in the side panel let you trigger any of them, in any mode.
 - Minimap in the side panel: shows roads, buildings, water and fires, and a white box for your view. Click or drag it to jump around.
 - Weather: clear, rain and snow roll in on their own (press `[` to cycle). Rain dims the sky and makes fires 65% less likely.
