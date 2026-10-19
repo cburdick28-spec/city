@@ -74,6 +74,7 @@ dt{color:var(--mute)} dd{margin:0;font-variant-numeric:tabular-nums;text-align:r
 #rankNext{color:var(--mute);font-size:12px}
 #reset,#grow,#polBtn{width:100%;padding:8px;border:1px solid var(--edge);background:transparent;border-radius:6px;color:var(--mute);font-size:12px}
 #grow,#polBtn{color:var(--text);border-color:rgba(255,179,71,.5)}
+#disRow{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}#disRow b{grid-column:1/4;font:600 10px/1 inherit;letter-spacing:.08em;text-transform:uppercase;color:var(--mute);margin-top:2px}#disRow button{padding:7px 2px;border:1px solid rgba(255,90,70,.45);background:transparent;border-radius:6px;color:var(--text);font-size:11px}#disRow button:hover{background:rgba(255,90,70,.14)}
 .card.lock{opacity:.45}
 #pol .mpanel{width:min(820px,100%)}
 #grow:hover{background:rgba(255,179,71,.14)}
@@ -211,6 +212,7 @@ body.photo #photoHint{display:block!important}
     <button id="polBtn">Policies</button>
     <button id="grow">Grow city (free burst of new lots)</button>
     <button id="photoBtn">Photo mode (P)</button>
+    <div id="disRow"><b>Disaster drill</b><button data-dis="quake">Quake</button><button data-dis="flood">Flood</button><button data-dis="meteor">Meteor</button></div>
     <button id="reset">New game / menu</button>
   </aside>
 
@@ -376,6 +378,8 @@ var POLS=[
  {id:'cleanair',name:'Clean air act',rank:1,desc:'Pollution hurts mood 60% less. Factories pay for scrubbers.',cost:function(s){return Math.round(s.ind*.3)}},
  {id:'greenbelt',name:'Green belt',rank:1,desc:'Parks lift mood 60% more. Needs maintenance crews.',cost:function(s){return s.parks*6}},
  {id:'firecode',name:'Fire code',rank:1,desc:'Fires start 60% less often. Inspectors are not free.',cost:function(s){return Math.round(s.roads*.5)}},
+ {id:'quake',name:'Seismic code',rank:2,desc:'Earthquake damage drops 60%. Inspectors and retrofits cost money.',cost:function(s){return Math.round(s.roads*.4)}},
+ {id:'levees',name:'Flood levees',rank:2,desc:'Floods reach half as far and ruin fewer buildings.',cost:function(s){return Math.round(s.roads*.3)}},
  {id:'freetransit',name:'Free transit',rank:2,desc:'No fares, but transit lifts mood more and clears more traffic.',tag:'loses fare income',cost:function(){return 0}},
  {id:'taxbreak',name:'Business tax break',rank:2,desc:'Shop and factory demand jumps. Tax income drops 8%.',tag:'-8% taxes',cost:function(){return 0}},
  {id:'nightlife',name:'Night economy',rank:2,desc:'Shops stay open late for extra income. A little noise costs mood.',income:function(s){return Math.round(s.com*.35)},cost:function(){return 0}},
@@ -410,9 +414,11 @@ scene.background=new THREE.Color('#8cc5ec');
 scene.fog=new THREE.Fog('#8cc5ec',100,290);
 var camera=new THREE.PerspectiveCamera(42,1,0.5,400);
 var cam={yaw:0.78,pitch:0.78,dist:34,tx:0,tz:0};
+var shakeT=0,shakeA=0;
 function applyCam(){
   var cp=Math.cos(cam.pitch);
   camera.position.set(cam.tx+cam.dist*cp*Math.sin(cam.yaw),cam.dist*Math.sin(cam.pitch),cam.tz+cam.dist*cp*Math.cos(cam.yaw));
+  if(shakeT>0){var sk=Math.min(1,shakeT)*shakeA;camera.position.x+=(Math.random()-.5)*sk;camera.position.y+=(Math.random()-.5)*sk;camera.position.z+=(Math.random()-.5)*sk}
   camera.lookAt(cam.tx,0,cam.tz);
 }
 function resize(){
@@ -1101,7 +1107,7 @@ function clearTile(x,z){
     inFoot=false;
   }
   if(c.m){if(wiping){c.m=0;c.a=-1}else{breakMega(c.m===1?idx(x,z):c.a,idx(x,z),2)}}
-  extinguish(idx(x,z));removeDecor(idx(x,z));
+  extinguish(idx(x,z));if(typeof clearRubble==='function')clearRubble(idx(x,z));removeDecor(idx(x,z));
   if(c.obj){disposeObj(c.obj);c.obj=null}
   if(c.plot){world.remove(c.plot);c.plot=null}
   if(c.road){disposeObj(c.road);c.road=null}
@@ -1440,7 +1446,7 @@ function simDay(){
     else if(c.l===3&&!c.m&&d>.1&&happy>52&&Math.random()<.02*(pol('highrise')?3:1)&&merge(x,z,0)){changed=true}
   }
   if(changed)stats=computeStats();
-  day++;burnTick();
+  day++;burnTick();disasterTick();
   if(day%10===0)monthly();
   checkGoal();checkScenario();syncCars();syncPeds();hud();
 }
@@ -1457,6 +1463,134 @@ function monthly(){
   note('Month closed: '+(inc-exp>=0?'+':'-')+'$'+Math.abs(inc-exp).toLocaleString('en-US'));
   save();
 }
+
+
+/* ---------- disasters ---------- */
+var rubble={},rubMat=new THREE.MeshLambertMaterial({color:'#8a8178'}),rubMat2=new THREE.MeshLambertMaterial({color:'#5e5851'}),rubGeo=new THREE.BoxGeometry(.3,.2,.24);
+var craterGeo=new THREE.CircleGeometry(1.25,20);craterGeo.rotateX(-Math.PI/2);var craterMat=new THREE.MeshBasicMaterial({color:'#2a2521'});
+var floodSet=null,floodMat=new THREE.MeshBasicMaterial({color:'#3f93c9',transparent:true,opacity:.55,depthWrite:false}),disFx=[],meteors=[],dCool=0,RESIL={};
+RESIL[T.PARK]=RESIL[T.PLAZA]=RESIL[T.FOUNT]=1;
+function addRubble(x,z,crater){
+  var i=idx(x,z);if(!inb(x,z)||grid[i].w||rubble[i]||grid[i].t!==T.E)return;
+  var g=new THREE.Group();g.position.set(wx(x),.04,wx(z));
+  if(crater){var cr=new THREE.Mesh(craterGeo,craterMat);cr.position.y=.01;g.add(cr)}
+  for(var k=0;k<9;k++){var m=new THREE.Mesh(rubGeo,k%3?rubMat:rubMat2);m.position.set((Math.random()-.5)*.8,.06+Math.random()*.08,(Math.random()-.5)*.8);m.rotation.set(Math.random()*.5,Math.random()*6.28,Math.random()*.5);m.scale.setScalar(.9+Math.random()*1.3);g.add(m)}
+  world.add(g);rubble[i]={g:g,age:0,x:x,z:z};grid[i].rb=1;
+}
+function clearRubble(i){var r=rubble[i];if(!r)return;world.remove(r.g);delete rubble[i];if(grid[i])grid[i].rb=0}
+function hurtTile(x,z,sev,force){
+  var i=idx(x,z),c=grid[i];
+  if(c.fp===2||c.t===T.E||c.t===T.ROAD||RESIL[c.t])return {n:0,v:0};
+  if(c.t>=T.RES&&c.t<=T.IND){
+    if(c.l<1)return {n:0,v:0};
+    if(c.m){breakMega(c.m===1?i:c.a,-1,force?0:2);if(!force)return {n:1,v:600}}
+    var nl=force?0:Math.max(0,c.l-(sev>.6?2:1)),v=(c.l-nl)*100;c.l=nl;
+    if(nl===0)extinguish(i);
+    spawnObj(c,x,z,0);return {n:1,v:v};
+  }
+  var k=fsz(c.t);clearTile(x,z);
+  for(var dz=0;dz<k;dz++)for(var dx=0;dx<k;dx++)addRubble(x+dx,z+dz);
+  return {n:1,v:300*k*k};
+}
+function addRing(x,z,R,col){
+  var m=new THREE.Mesh(ringGeo,new THREE.MeshBasicMaterial({color:col,transparent:true,opacity:.8,depthWrite:false}));
+  m.position.set(wx(x),.09,wx(z));world.add(m);disFx.push({m:m,age:0,max:1.4,r:R/.43});
+}
+function aftermath(name,n,v){
+  var big=Math.round(v*.5);
+  if(!DF().creative&&n>0){happy=Math.max(5,happy-Math.min(14,n*.7));money+=big;note(name+': '+n+' buildings hit. Relief fund +$'+big.toLocaleString('en-US'))}
+  else note(n>0?name+': '+n+' buildings hit.':name+': no damage.');
+  stats=computeStats();syncCars();syncPeds();hud();
+}
+function randBuilding(){
+  var cand=[];for(var z=0;z<N;z++)for(var x=0;x<N;x++){var c=grid[idx(x,z)];if(c.t>=T.RES&&c.fp!==2&&!c.w)cand.push([x,z])}
+  return cand.length?cand[(Math.random()*cand.length)|0]:[(Math.random()*N)|0,(Math.random()*N)|0];
+}
+function quake(ex,ez,mag){
+  var R=3+mag*1.5,n=0,v=0,sm=pol('quake')?.4:1,flam=[];
+  addRing(ex,ez,R,'#e8c36a');shakeT=2.4+mag*.2;shakeA=.12+mag*.06;
+  for(var z=Math.max(0,Math.floor(ez-R));z<=Math.min(N-1,Math.ceil(ez+R));z++)for(var x=Math.max(0,Math.floor(ex-R));x<=Math.min(N-1,Math.ceil(ex+R));x++){
+    var d=Math.hypot(x-ex,z-ez);if(d>R)continue;
+    var sev=(1-d/R)*Math.min(1,mag/6.5),p=Math.min(.95,sev*(.45+(mag-4)*.1))*sm;
+    if(Math.random()<p){var h=hurtTile(x,z,sev);n+=h.n;v+=h.v}
+  }
+  if(mag>=5.2&&!DF().creative){
+    for(z=0;z<N;z++)for(x=0;x<N;x++){if(flammable(grid[idx(x,z)])&&Math.hypot(x-ex,z-ez)<R*.6)flam.push([x,z])}
+    var gl=Math.min(flam.length,pol('quake')?1:3);while(gl-->0){var q=flam.splice((Math.random()*flam.length)|0,1)[0];igniteTile(q[0],q[1])}
+  }
+  aftermath('Earthquake M'+mag.toFixed(1),n,v);return n;
+}
+function flood(){
+  if(floodSet)return 0;
+  var wt=[],i;for(i=0;i<N*N;i++)if(grid[i].w)wt.push(i);
+  if(!wt.length){note('No coastline to flood');return 0}
+  var o=wt[(Math.random()*wt.length)|0],ox=o%N,oz=(o/N)|0,D=pol('levees')?1:3,R=pol('levees')?7:11,ts=[],ms=[];
+  for(var z=Math.max(0,oz-R);z<=Math.min(N-1,oz+R);z++)for(var x=Math.max(0,ox-R);x<=Math.min(N-1,ox+R);x++){
+    var c=grid[idx(x,z)];if(c.w||Math.hypot(x-ox,z-oz)>R)continue;
+    var near=false;for(var dz=-D;dz<=D&&!near;dz++)for(var dx=-D;dx<=D;dx++){if(inb(x+dx,z+dz)&&grid[idx(x+dx,z+dz)].w){near=true;break}}
+    if(!near)continue;
+    var m=new THREE.Mesh(mGeo,floodMat);m.position.set(wx(x),.075,wx(z));m.scale.set(.98,1,.98);world.add(m);ts.push([x,z]);ms.push(m);
+  }
+  if(!ts.length){note('The storm surge hit the sea walls and went nowhere');return 0}
+  floodSet={left:4,t:ts,ms:ms};setWeather('rain');wxT=90;
+  note('Flood! The sea is rising. Water clears in about 4 days.');return ts.length;
+}
+function endFlood(){
+  var n=0,v=0,pr=(pol('levees')?.25:.5);
+  floodSet.ms.forEach(function(m){world.remove(m)});
+  floodSet.t.forEach(function(t){if(Math.random()<pr){var h=hurtTile(t[0],t[1],.3);n+=h.n;v+=h.v}});
+  floodSet=null;aftermath('Flood',n,v);
+}
+function meteor(tx,tz){
+  var g=new THREE.Group();
+  var core=new THREE.Mesh(new THREE.SphereGeometry(.42,10,8),new THREE.MeshBasicMaterial({color:'#ffb347'}));g.add(core);
+  var tail=new THREE.Mesh(new THREE.ConeGeometry(.3,2.6,8),new THREE.MeshBasicMaterial({color:'#ff6a2a',transparent:true,opacity:.7}));tail.position.set(.9,.9,-.7);tail.rotation.set(.9,0,-.9);g.add(tail);
+  g.position.set(wx(tx)+16,48,wx(tz)-12);world.add(g);meteors.push({g:g,tx:tx,tz:tz,t:0});note('Meteor incoming!');
+}
+function impact(mt){
+  var tx=mt.tx,tz=mt.tz,n=0,v=0;world.remove(mt.g);
+  shakeT=3;shakeA=.7;addRing(tx,tz,5,'#ff7a1a');
+  for(var z=tz-4;z<=tz+4;z++)for(var x=tx-4;x<=tx+4;x++){
+    if(!inb(x,z))continue;var d=Math.hypot(x-tx,z-tz),c=grid[idx(x,z)];
+    if(d<=1.9){
+      if(c.t===T.ROAD&&!c.w&&d<=1.3){clearTile(x,z);addRubble(x,z)}
+      else{var h=hurtTile(x,z,1,true);n+=h.n;v+=h.v}
+    }else if(d<=3.8&&flammable(c)&&Math.random()<.6&&!DF().creative)igniteTile(x,z);
+  }
+  addRubble(tx,tz,true);
+  aftermath('Meteor strike',n,v);
+}
+function updateDisasters(dt){
+  if(shakeT>0)shakeT-=dt;
+  var i,f;
+  for(i=disFx.length-1;i>=0;i--){f=disFx[i];f.age+=dt;var k=f.age/f.max;if(k>=1){world.remove(f.m);disFx.splice(i,1);continue}f.m.scale.setScalar(f.r*k+.01);f.m.material.opacity=.8*(1-k)}
+  for(i=meteors.length-1;i>=0;i--){
+    var m=meteors[i];m.t+=dt/1.7;var u=Math.min(1,m.t);
+    m.g.position.set(wx(m.tx)+16*(1-u),48*(1-u)+.3,wx(m.tz)-12*(1-u));
+    if(u>=1){meteors.splice(i,1);impact(m)}
+  }
+  if(floodSet)floodMat.opacity=.5+.08*Math.sin(performance.now()/380);
+}
+function disasterTick(){
+  if(floodSet){floodSet.left--;if(floodSet.left<=0)endFlood()}
+  var ks=Object.keys(rubble);
+  for(var i=0;i<ks.length;i++){var r=rubble[ks[i]];if(!r)continue;r.age++;if(r.age>=(covered(r.x,r.z)?5:18))clearRubble(+ks[i])}
+  if(dCool>0)dCool--;
+  if(DF().creative||day<60||dCool>0||floodSet||meteors.length)return;
+  if(Math.random()<.006*DF().fire*scnFire()){
+    dCool=30;var r2=Math.random();
+    if(r2<.5){var e=randBuilding();quake(e[0],e[1],4+Math.random()*2.5)}
+    else if(r2<.8){flood()}
+    else{var b=randBuilding();meteor(b[0],b[1])}
+  }
+}
+function triggerDisaster(kind){
+  if(menuOpen)return;
+  if(kind==='quake'){var e=randBuilding();quake(e[0],e[1],5+Math.random()*2)}
+  else if(kind==='flood')flood();
+  else if(kind==='meteor'){if(meteors.length)return;var b=randBuilding();meteor(b[0],b[1])}
+}
+Array.prototype.forEach.call(document.querySelectorAll('#disRow button'),function(b){b.addEventListener('click',function(){triggerDisaster(b.getAttribute('data-dis'))})});
 
 /* ---------- HUD ---------- */
 var lastHud='';
@@ -1532,7 +1666,7 @@ $('grow').addEventListener('click',growCity);
 $('reset').addEventListener('click',function(){openMenu()});
 
 /* ---------- placing ---------- */
-function canPlace(x,z){var c=grid[idx(x,z)];if(curTool.id==='orbit')return false;if(curTool.id==='bull')return c.t!==T.E;if(curTool.id==='bus')return c.t===T.ROAD&&!c.stop;if(curTool.id==='upg'){var oc=grid[c.fp===2?c.fa:idx(x,z)];return !!(UPG[oc.t]&&!oc.up&&oc.m!==2&&!fires[idx(x,z)])}var pk=curTool.t?fsz(curTool.t):1;if(pk>1){var pa=footAnchor(x,z,pk);return footFree(pa[0],pa[1],pk)&&(curTool.t!==T.HARBOR||harborSides(pa[0],pa[1],pk).some(function(v){return v>0}))}return c.t===T.E&&(!c.w||curTool.id==='road')}
+function canPlace(x,z){var c=grid[idx(x,z)];if(curTool.id==='orbit')return false;if(curTool.id==='bull')return c.t!==T.E||!!c.rb;if(curTool.id==='bus')return c.t===T.ROAD&&!c.stop;if(curTool.id==='upg'){var oc=grid[c.fp===2?c.fa:idx(x,z)];return !!(UPG[oc.t]&&!oc.up&&oc.m!==2&&!fires[idx(x,z)])}var pk=curTool.t?fsz(curTool.t):1;if(pk>1){var pa=footAnchor(x,z,pk);return footFree(pa[0],pa[1],pk)&&(curTool.t!==T.HARBOR||harborSides(pa[0],pa[1],pk).some(function(v){return v>0}))}return c.t===T.E&&(!c.w||curTool.id==='road')}
 function applyTool(x,z){
   if(!inb(x,z)||!canPlace(x,z))return false;
   var tl=curTool;
@@ -1549,7 +1683,9 @@ function applyTool(x,z){
   if(tl.id==='bull'){clearTile(x,z)}
   else if(tl.id==='bus'){addStop(x,z)}
   else{
-    var fk2=fsz(tl.t);if(fk2>1){var fa2=footAnchor(x,z,fk2);placeFoot(fa2[0],fa2[1],tl.t,0)}else setTile(x,z,tl.t,0,0);
+    var fk2=fsz(tl.t),rA=fk2>1?footAnchor(x,z,fk2):[x,z];
+    for(var rz=0;rz<fk2;rz++)for(var rx=0;rx<fk2;rx++)clearRubble(idx(rA[0]+rx,rA[1]+rz));
+    if(fk2>1){var fa2=rA;placeFoot(fa2[0],fa2[1],tl.t,0)}else setTile(x,z,tl.t,0,0);
     if(tl.t>=T.RES&&tl.t<=T.IND&&!hasRoad(x,z))note('Zones only grow within 2 tiles of a road.');
   }
   stats=computeStats();syncCars();syncPeds();hud();return true;
@@ -2141,7 +2277,7 @@ function frame(now){
     if(l>=1){pf.on=false;pf.m.visible=false;continue}
     pf.m.position.y+=dt*.32;pf.m.position.x+=dt*pf.vx;pf.m.scale.setScalar(.6+l*2.2);pf.m.material.opacity=(pf.k==='steam'?.5:.42)*(1-l);
   }
-  animFires(dt);updateClouds(dt);updateCars(cars,dt,.14);updateCars(buses,dt,.14);updateCars(peds,dt,.4);updateBoats(dt);updateJets(dt);
+  animFires(dt);updateDisasters(dt);updateClouds(dt);updateCars(cars,dt,.14);updateCars(buses,dt,.14);updateCars(peds,dt,.4);updateBoats(dt);updateJets(dt);
   clockT+=dt;if(clockT>.5){clockT=0;drawMini();var hrs=tod*24,hh=Math.floor(hrs),mm=Math.floor((hrs-hh)*60);$('clock').textContent=(hh<10?'0':'')+hh+':'+(mm<10?'0':'')+mm}
   if(composer&&fxOn)composer.render();else renderer.render(scene,camera);
   fxAcc+=dt;fxN++;
