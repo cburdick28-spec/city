@@ -71,7 +71,7 @@ Bloom, a soft miniature-style blur at the screen edges and a vignette are on by 
 
 The start menu (also behind the **New game / menu** button) has two tabs:
 
-- **Sandbox**: Blank land, Hamlet, Town, City, Metropolis and Megacity (very heavy). The Town, City and Metropolis presets are generated fresh each time, so no two are the same.
+- **Sandbox**: Blank land, Hamlet, Town, City, Metropolis, Megacity (very heavy) and Sprawl (the whole 88 x 88 map, ~30,000 residents, extreme). Generated cities are fresh each time, and fire stations are placed by coverage so nearly every lot is inside a station's radius. Hamlet starts without one on purpose.
 - **City blocks**: five road-only starts with the streets already laid and no buildings: Grid blocks, Rings and spokes, Superblocks, Ring road, and Island link (a causeway to the second island). You zone, power and build everything.
 - **Scenarios**: Blackout (one power plant left), Firestorm (fires burning, no fire station), Debt Spiral (deep in debt with heavy upkeep) and Ghost Town (the town is half empty and unhappy). Each has objectives, a time limit and a win/lose screen. They start paused so you can plan.
 

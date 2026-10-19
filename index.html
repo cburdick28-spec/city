@@ -1462,7 +1462,7 @@ function monthly(){
   var s=stats;
   var df=DF(),tbk=pol('taxbreak')?.92:1,tour=pol('tourism')?2:1;
   var inc=Math.round(((s.pop*tax*.4+s.jobs*tax*.25)*.85*tbk+(pol('freetransit')?0:s.trPop*.1))*df.inc)+(s.stadiums*250+s.spires*600+s.plazas*40)*tour+s.megas*90+s.bx.inc+(pol('tourism')?s.bx.tour:0)+polIncome();
-  var exp=Math.round((s.roads*1+s.plants*30+s.parks*4+s.stations*25+s.stadiums*40+s.spires*60+s.stops*3+s.metros*80+s.winds*8+s.schools*20+s.hosps*40+s.police*25+s.plazas*3+s.bx.exp+Math.max(0,s.pop-800)*(1.5+s.pop/2500))*df.exp*scnUpk()*(pol('austerity')?.8:1))+polCost();
+  var exp=Math.round((s.roads*1+s.plants*30+s.parks*4+s.stations*25+s.stadiums*40+s.spires*60+s.stops*3+s.metros*80+s.winds*8+s.schools*20+s.hosps*40+s.police*25+s.plazas*3+s.bx.exp+Math.max(0,s.pop-800)*(1.5+Math.min(1.4,s.pop/2500)))*df.exp*scnUpk()*(pol('austerity')?.8:1))+polCost();
   money+=inc-exp;budget={inc:inc,exp:exp,has:true};
   note('Month closed: '+(inc-exp>=0?'+':'-')+'$'+Math.abs(inc-exp).toLocaleString('en-US'));
   save();
@@ -1867,7 +1867,8 @@ var PRESETS={
  town:{name:'Town',blurb:'A main street, a grid of homes, a small industrial edge.',tag:'~1,100 residents',R:8,money:45000,day:240,fill:.95,lvl:.5,mega:0,stations:1,stops:2,metro:0,school:1,police:1,wind:1,lib:1},
  city:{name:'City',blurb:'Dense downtown, suburbs, a stadium and a fire network.',tag:'~3,200 residents',R:11,money:120000,day:600,fill:.98,lvl:.75,mega:.5,stations:3,stops:6,metro:0,stadium:1,school:2,police:2,hosp:1,plaza:2,wind:2,lib:1,solar:1,mall:1,airport:1,fountain:2,clock:1,up:.15},
  metropolis:{name:'Metropolis',blurb:'Skyline, mega complexes, metro. Heavy on weak GPUs.',tag:'~6,500 residents',R:14,money:90000,day:1080,fill:1,lvl:.9,mega:.8,stations:5,stops:10,metro:3,stadium:1,spire:1,school:3,police:3,hosp:2,plaza:4,wind:3,lib:2,solar:2,mall:2,uni:1,museum:1,amuse:1,airport:1,zoo:1,cathedral:1,lighthouse:1,harbor:1,fountain:3,clock:1,up:.4},
- megacity:{name:'Megacity',blurb:'The whole island. Towers, metro, jets. Needs a strong GPU.',tag:'~15,000 residents · very heavy',R:22,money:260000,day:1800,fill:1,lvl:.9,mega:.8,stations:9,stops:20,metro:6,stadium:1,spire:1,school:6,police:5,hosp:4,plaza:8,wind:5,lib:3,solar:3,mall:4,uni:2,museum:2,amuse:2,airport:1,zoo:2,cathedral:2,lighthouse:2,harbor:2,fountain:5,clock:2,up:.5}
+ megacity:{name:'Megacity',blurb:'The whole island. Towers, metro, jets. Needs a strong GPU.',tag:'~15,000 residents · very heavy',R:22,money:260000,day:1800,fill:1,lvl:.9,mega:.8,stations:9,stops:20,metro:6,stadium:1,spire:1,school:6,police:5,hosp:4,plaza:8,wind:5,lib:3,solar:3,mall:4,uni:2,museum:2,amuse:2,airport:1,zoo:2,cathedral:2,lighthouse:2,harbor:2,fountain:5,clock:2,up:.5},
+ sprawl:{name:'Sprawl',blurb:'The entire map. A giant metropolis with suburbs out to the coast. Fire stations everywhere.',tag:'~30,000 residents · extreme, strong GPU only',R:34,money:450000,day:2400,fill:1,lvl:.85,mega:.7,stations:18,stops:30,metro:10,stadium:1,spire:1,school:10,police:8,hosp:6,plaza:12,wind:8,lib:5,solar:5,mall:6,uni:3,museum:3,amuse:3,airport:1,zoo:2,cathedral:2,lighthouse:3,harbor:2,fountain:8,clock:3,up:.3,cam:105}
 };
 var BLOCKS={
  grid:{name:'Grid blocks',blurb:'The classic 5-tile street grid, every road already laid. Zone it your way.',tag:'Roads only · $30,000',layout:'grid',money:30000,cam:44},
@@ -1941,7 +1942,27 @@ function genCity(P,r){
   function rsv(px,pz,kind){var k2=fsz(KIND[kind]);if(k2>1)reserveBlock(px,pz,kind,k2);else reserve(px,pz,kind)}
   var k,a;
   spread('harbor',P.harbor,.8,.3);spread('airport',P.airport,.9,.95);if(P.stadium)rsv(cx-R*.5,cz+R*.35,'stadium');spread('uni',P.uni,.6,5.6);spread('amuse',P.amuse,.78,2.0);spread('zoo',P.zoo,.68,3.3);spread('mall',P.mall,.3,2.9);spread('hosp',P.hosp,.35,3.9);spread('museum',P.museum,.2,1.6);spread('cathedral',P.cathedral,.22,4.4);spread('solar',P.solar,.9,4.2);
-  for(k=0;k<P.stations;k++){if(k===0)reserve(cx+1.5,cz+1.5,'fire');else{a=(k-1)/Math.max(1,P.stations-1)*6.283+.6;reserve(cx+Math.cos(a)*R*.6,cz+Math.sin(a)*R*.6,'fire')}}
+  (function(){ /* fire stations: greedy coverage so every lot is inside a station's radius */
+    if(!P.stations)return;
+    var tg=[],cd=[],xx,zz,q,R2=FIRE_R*FIRE_R;
+    for(zz=cz-R;zz<=cz+R;zz++)for(xx=cx-R;xx<=cx+R;xx++){
+      if(!inb(xx,zz))continue;q=idx(xx,zz);
+      if(road[q]||grid[q].w||spec[q]||Math.hypot(xx-cx,zz-cz)>R+.5)continue;
+      tg.push([xx,zz,0]);if(near(xx,zz))cd.push([xx,zz]);
+    }
+    var placed=0,maxS=P.stations+8;
+    while(placed<maxS&&cd.length){
+      var bi=-1,bs=-1e9,ci,ti;
+      for(ci=0;ci<cd.length;ci++){
+        var cc=cd[ci],cnt=0;
+        for(ti=0;ti<tg.length;ti++){var t3=tg[ti];if(t3[2])continue;var ddx=t3[0]-cc[0],ddz=t3[1]-cc[1];if(ddx*ddx+ddz*ddz<=R2)cnt++}
+        var sc=cnt-Math.hypot(cc[0]-cx,cc[1]-cz)*.01;if(sc>bs){bs=sc;bi=ci}
+      }
+      if(bi<0||(bs<9&&placed>=P.stations))break;
+      var pc=cd.splice(bi,1)[0];spec[idx(pc[0],pc[1])]='fire';placed++;
+      for(ti=0;ti<tg.length;ti++){var t4=tg[ti],ex2=t4[0]-pc[0],ez2=t4[1]-pc[1];if(ex2*ex2+ez2*ez2<=R2)t4[2]=1}
+    }
+  })();
   if(P.spire)reserve(cx-1.5,cz-1.5,'spire');
   for(k=0;k<(P.metro||0);k++){a=k/P.metro*6.283+1.1;reserve(cx+Math.cos(a)*R*.4,cz+Math.sin(a)*R*.4,'metro')}
   function spread(kind,n,rf,off){for(var q=0;q<(n||0);q++){var an=q/n*6.283+off;rsv(cx+Math.cos(an)*R*rf,cz+Math.sin(an)*R*rf,kind)}}
