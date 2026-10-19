@@ -29,7 +29,7 @@ Or from the command line: `npx vercel --prod`.
 | Pan | Shift + right-drag, WASD or arrow keys |
 | Zoom | Mouse wheel, `+` / `-`, or pinch |
 | Rotate | `Q` / `E` |
-| Tools | `1`–`8`, `F` fire station, `B` bus stop, `G` stadium, `H` spire, `M` metro station, `J` school, `K` police, `L` hospital, `N` wind farm, `O` plaza, `I` library, `V` solar, `C` mall, `Y` museum, `T` amusement park, `U` university, `Z` airport, `R` upgrade, `9` zoo, `0` cathedral, `,` lighthouse, `P` photo mode, `[` cycle weather |
+| Tools | `1`–`8`, `F` fire station, `B` bus stop, `G` stadium, `H` spire, `M` metro station, `J` school, `K` police, `L` hospital, `N` wind farm, `O` plaza, `I` library, `V` solar, `C` mall, `Y` museum, `T` amusement park, `U` university, `Z` airport, `R` upgrade, `9` zoo, `0` cathedral, `,` lighthouse, `.` harbor, `;` fountain, `'` clock tower, `P` photo mode, `[` cycle weather |
 | Effects on/off | `X` |
 | Pause | Space |
 
@@ -50,6 +50,8 @@ On touch screens, pick the Look around tool to orbit, and use two fingers to pan
 - Upgrades: pick the Upgrade tool (`R`) and click a service or landmark to level it up for a fee. School becomes a Campus, Hospital a Medical center, Fire station a Fire HQ (9 tile reach), Airport an International airport, and so on. Upgraded buildings get a gold ring and star, reach 50% further, and earn more (or add power and jobs) for extra upkeep.
 - Bigger map: the island is now 56 x 56 tiles with a second island. Older 36 x 36 saves are centered in it automatically.
 - More landmarks: Lighthouse (Town, rotating beam at night), Zoo and Cathedral (Large town). They lift mood and earn tourist income, and all three can be upgraded.
+- Harbor (City rank, 3x3): must touch water, turns to face it, with a crane, containers and a moored ship; upgrades to a Container port. Fountain (Hamlet+) and Clock tower (Town) are cheap 1x1 mood boosters, each upgradeable.
+- Minimap in the side panel: shows roads, buildings, water and fires, and a white box for your view. Click or drag it to jump around.
 - Weather: clear, rain and snow roll in on their own (press `[` to cycle). Rain dims the sky and makes fires 65% less likely.
 - Photo mode (`P` or the panel button): hides the UI, eases to golden hour and slowly orbits. `P` or Esc to leave.
 - Footprints: big landmarks take more land. Airport 4x4; Stadium, University, Amusement park and Zoo 3x3; Mall, Hospital, Museum, Cathedral and Solar farm 2x2. The hover box shows the footprint, bulldozing any tile removes the whole building, and bigger buildings reach a bit further.
